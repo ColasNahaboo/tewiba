@@ -1,7 +1,6 @@
 #!/bin/bash
 error="testshell run without argument"
-error () { echo "$error $*" >&2; let fails++; }
-fails=0
+error () { echo "$error $*" >&2; let fails++; }; fails=0
 
 res=$(../testshell)
 

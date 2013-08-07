@@ -1,0 +1,17 @@
+#!/bin/bash
+error="Test script"
+error () { echo "$error $*" >&2; let fails++; }; fails=0
+
+errline_ts=$(fgrep 'error ()' ../testshell)
+errline_ts_ns="${errline_ts//[[:space:]]/}"
+
+for i in *; do
+    [[ $i =~ (^'#'|~$) ]] || [ ! -x "$i" -o -d "$i" ] && continue
+    errline=$(grep '^error ()' "$i")
+    [ "${errline//[[:space:]]/}" = "$errline_ts_ns" ] \
+  || error "\"$i\" has a definition of error () different than in the doc:
+script: $errline
+doc: $errline_ts"
+done
+
+exit $fails

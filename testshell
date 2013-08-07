@@ -9,13 +9,14 @@ arguments.
    * Nothing is printed if all tests OK. On failure, the stderr is printed
    * Tests exit code must be the number of failed tests (0 = OK)
    * A warning is printed if the test was OK but printed on stderr
-   * tests are run in their directory
+   * Tests are run in their directory
    * Exit code is the number of failed tests
 
 How to write tests:
    * Tests are executable files, that exit with code 0  if OK, and the number 
      of failure if not
    * Give tests meaningful names. "Test for empty input" rather than "ei.test"
+   * Filenames beginning with a "." or "#", or ending with "~" are ignored
    * They must print on stderr an explanation of the error, or a warning if 
      exit code is 0. Prints on stdout are only shonw in verbose mode
    * Tests can create temporary files and dirs prefixed by "$tmp."
@@ -23,8 +24,7 @@ How to write tests:
    * Test data can be put in subdirectories, as subdirectories are not tested
    * A common way to write bash tests is to begin with:
         error="the common prefix for all message errors of this test file"
-        error () { echo "$error $*" >&2; let fails++; }
-        fails=0
+        error () { echo "$error $*" >&2; let fails++; }; fails=0
      Run the cxode to test, and on each error, just call: 
         error "the-error-message"
      And end with a:
@@ -64,9 +64,8 @@ ts_dir () {
   local i oldpwd="$PWD"
   err_cd "$1" 
   for i in *; do 
-    [[ $i =~ $'#' ]] && continue
-    [[ $i =~ ~$ ]] && continue
-    if [ -x "$i" -a ! -d "$i" ]; then ts_test "$i"; fi
+    [[ $i =~ (^'#'|~$) ]] || [ ! -x "$i" -o -d "$i" ] && continue
+    ts_test "$i"
   done
   cd "$oldpwd"
 }
