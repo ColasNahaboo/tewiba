@@ -1,0 +1,14 @@
+#!/bin/bash
+error="No-argument test"
+error () { echo "$error $*" >&2; let fails++; }
+fails=0
+
+errline_ts=$(fgrep 'error ()' ../testshell)
+errline_na=$(fgrep 'error ()' 'No arguments -> prints usage')
+
+[ "${errline_ts//[[:space:]]/}" = "${errline_na//[[:space:]]/}" ] \
+  || error "has a definition of error () different than in the doc:
+script: $errline_na
+doc: $errline_ts"
+
+exit $fails

@@ -9,14 +9,31 @@ arguments.
    * Nothing is printed if all tests OK. On failure, the stderr is printed
    * Tests exit code must be the number of failed tests (0 = OK)
    * A warning is printed if the test was OK but printed on stderr
+   * tests are run in their directory
    * Exit code is the number of failed tests
-Convenience goodies:
+
+How to write tests:
+   * Tests are executable files, that exit with code 0  if OK, and the number 
+     of failure if not
+   * Give tests meaningful names. "Test for empty input" rather than "ei.test"
+   * They must print on stderr an explanation of the error, or a warning if 
+     exit code is 0. Prints on stdout are only shonw in verbose mode
    * Tests can create temporary files and dirs prefixed by "$tmp."
      they will be automatically cleaned afterwards
+   * Test data can be put in subdirectories, as subdirectories are not tested
+   * A common way to write bash tests is to begin with:
+        error="the common prefix for all message errors of this test file"
+        error () { echo "$error $*" >&2; let fails++; }
+        fails=0
+     Run the cxode to test, and on each error, just call: 
+        error "the-error-message"
+     And end with a:
+        exit $fails
+
 Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
 
-V0.1 - Web site: http://colas.nahaboo.net/Software/TestShell
+Version 0.2 - Web site: http://colas.nahaboo.net/Software/TestShell
 Copyright (c) 2013 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
 '
@@ -26,23 +43,23 @@ warn () { echo "###Warning: $*" >&2; }
 V () { :;}; T () { :;}; v=false; E () { echo "$@";}; En () { echo -n "$@";}
 Vn () { :;}
 while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
-    -d) testdir="$2"; shift;;
     -v) V () { echo "== $*" >&2;}; Vn () { echo -n "== $*" >&2;}; v=true
     T () { local i;En "==";for i in $*; do En " $i="`eval E '$'$i`;done;E;};;
 	*) echo "$USAGE"; exit 1;
 esac;shift; done; if test "_$1" = "_--";then shift; fi
-
 if [ $# = 0 ]; then echo "$USAGE"; exit 1; fi
-
-err_cd () {
-  cd "$1" 2>/dev/null || \
-  err "testshell failed to enter test dir: "$(readlink -m "$1")
-}
 
 export ts_failures=0
 export tmp=/tmp/testshell.$$
 ttmp=/tmp/testshell-main.$$
 
+# guarded cd
+err_cd () {
+  cd "$1" 2>/dev/null || \
+  err "testshell failed to enter test dir: "$(readlink -m "$1")
+}
+
+# executes all the tests that are direct sons of a dir
 ts_dir () {
   local i oldpwd="$PWD"
   err_cd "$1" 
@@ -51,11 +68,21 @@ ts_dir () {
     [[ $i =~ ~$ ]] && continue
     if [ -x "$i" -a ! -d "$i" ]; then ts_test "$i"; fi
   done
+  cd "$oldpwd"
+}
+
+# execute a test in its directory
+ts_test_path () {
+    local path=$(readlink -m "$1") oldpwd="$PWD"
+    err_cd "${path%/*}"
+    ts_test "${path##*/}"
+    cd "$oldpwd"
 }
     
+# execute a test in the current directory
 ts_test () {
   local t="$1"
-  Vn "test $t:"
+  Vn "Test: $t:"
   ./"$t" >$ttmp.out 2>$ttmp.err; status=$?
   let 'ts_failures += status'
   if [ $status = 0 ]; then
@@ -68,26 +95,34 @@ ts_test () {
       $v && echo " OK"
     fi
   else
-    if $v; then echo "***ERROR with code $status"
-    else echo "***ERROR: test $t FAILED with code $status"
+    if $v; then echo "***ERRORS:$status"
+    else echo "***FAILED ($status ERRORS): $t"
     fi
     if test -s $ttmp.err; then print_indent $ttmp.err; fi
   fi
   if $v && test -s $ttmp.out; then print_indent $ttmp.out; fi
   rm -rf $tmp $tmp.*
 }
+
+# print test outputs indented by 3 spaces for lisibility
 print_indent () { sed -e 's/^/   /' <"$1"; }
 
+# run all tests given in argument
 for t in "$@"; do
   if [  -d "$t" ]; then ts_dir "$t"
-  elif [ -x "$t"]; then ts_test "$t"
+  elif [ -x "$t" ]; then 
+      if [[ $t =~ / ]]; then ts_test_path "$t"
+      else ts_test "$t"
+      fi
   else err "$t is not a test!"
   fi
 done
+
+# cleanup temp files
 rm -rf $ttmp $ttmp.* $tmp $tmp.*
 
+# print global tests results
 if [ $ts_failures = 0 ]; then V "All tests OK =="
 else echo "== ***** Total tests failed: $ts_failures *****"
 fi
-
 exit $ts_failures

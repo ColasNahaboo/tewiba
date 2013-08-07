@@ -24,13 +24,16 @@ QuickStart
 
 License
 =======
-V0.1 - Web site: http://colas.nahaboo.net/Software/TestShell
+Web site: http://colas.nahaboo.net/Software/TestShell
 Copyright (c) 2013 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
 
+Test suite
+==========
+
+You can run the tests on testshell itself via: ./testshell -v tests
+
 TODO
 ====
-* Doc
 * Web site
-? self testsuite
 ? options to customise output messages
