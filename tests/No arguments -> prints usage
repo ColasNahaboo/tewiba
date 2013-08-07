@@ -1,0 +1,14 @@
+#!/bin/bash
+mess="testshell run without argument"
+mess () { echo "$mess $*" >&2; let fails++; }
+fails=0
+
+res=$(../testshell)
+
+[ $? = 0 ] \
+  && mess "did not return an error"
+
+[[ $res =~ ^testshell\ [[]options[]]\ [[]tests[.][.][.][]] ]] \
+  || mess "did not print the usage"
+
+exit $fails

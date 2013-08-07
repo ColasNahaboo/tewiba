@@ -1,0 +1,93 @@
+#!/bin/bash
+USAGE='testshell [options] [tests...]
+Runs the test suite, on all tests (default), or on specific tests given as 
+arguments.
+   * Tests are given as arguments, and executed in order, they can be either
+      * an executable file
+      * a directory, all executable files in it will be run as tests
+        no recursion is done, subdirs will not be explicitely scanned
+   * Nothing is printed if all tests OK. On failure, the stderr is printed
+   * Tests exit code must be the number of failed tests (0 = OK)
+   * A warning is printed if the test was OK but printed on stderr
+   * Exit code is the number of failed tests
+Convenience goodies:
+   * Tests can create temporary files and dirs prefixed by "$tmp."
+     they will be automatically cleaned afterwards
+Options:
+   -v      verbose: prints each test name as it is run, as well as its stdout
+
+V0.1 - Web site: http://colas.nahaboo.net/Software/TestShell
+Copyright (c) 2013 Colas Nahaboo (http://colas.nahaboo.net)
+MIT License: http://opensource.org/licenses/MIT
+'
+
+err () { echo "***ERROR: $*" >&2; exit 1; }
+warn () { echo "###Warning: $*" >&2; }
+V () { :;}; T () { :;}; v=false; E () { echo "$@";}; En () { echo -n "$@";}
+Vn () { :;}
+while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
+    -d) testdir="$2"; shift;;
+    -v) V () { echo "== $*" >&2;}; Vn () { echo -n "== $*" >&2;}; v=true
+    T () { local i;En "==";for i in $*; do En " $i="`eval E '$'$i`;done;E;};;
+	*) echo "$USAGE"; exit 1;
+esac;shift; done; if test "_$1" = "_--";then shift; fi
+
+if [ $# = 0 ]; then echo "$USAGE"; exit 1; fi
+
+err_cd () {
+  cd "$1" 2>/dev/null || \
+  err "testshell failed to enter test dir: "$(readlink -m "$1")
+}
+
+export ts_failures=0
+export tmp=/tmp/testshell.$$
+ttmp=/tmp/testshell-main.$$
+
+ts_dir () {
+  local i oldpwd="$PWD"
+  err_cd "$1" 
+  for i in *; do 
+    [[ $i =~ $'#' ]] && continue
+    [[ $i =~ ~$ ]] && continue
+    if [ -x "$i" -a ! -d "$i" ]; then ts_test "$i"; fi
+  done
+}
+    
+ts_test () {
+  local t="$1"
+  Vn "test $t:"
+  ./"$t" >$ttmp.out 2>$ttmp.err; status=$?
+  let 'ts_failures += status'
+  if [ $status = 0 ]; then
+    if test -s $ttmp.err; then 
+      if $v; then echo "OK, but printed on stderr:"
+      else echo "###Warning: test $t OK, but printed on stderr:"
+      fi
+      print_indent $ttmp.err
+    else
+      $v && echo " OK"
+    fi
+  else
+    if $v; then echo "***ERROR with code $status"
+    else echo "***ERROR: test $t FAILED with code $status"
+    fi
+    if test -s $ttmp.err; then print_indent $ttmp.err; fi
+  fi
+  if $v && test -s $ttmp.out; then print_indent $ttmp.out; fi
+  rm -rf $tmp $tmp.*
+}
+print_indent () { sed -e 's/^/   /' <"$1"; }
+
+for t in "$@"; do
+  if [  -d "$t" ]; then ts_dir "$t"
+  elif [ -x "$t"]; then ts_test "$t"
+  else err "$t is not a test!"
+  fi
+done
+rm -rf $ttmp $ttmp.* $tmp $tmp.*
+
+if [ $ts_failures = 0 ]; then V "All tests OK =="
+else echo "== ***** Total tests failed: $ts_failures *****"
+fi
+
+exit $ts_failures
