@@ -32,20 +32,25 @@ How to write tests:
 
 Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
+   -x      debug: execute each test in set -x more copying also the output to
+           /tmp/testshell.$LOGNAME.out Note: does not imply -v
 
-Version 0.2 - Web site: http://colas.nahaboo.net/Software/TestShell
+Version 0.3 - Web site: http://colas.nahaboo.net/Software/TestShell
 Copyright (c) 2013 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
 '
 
+export debug=false
+export debuglog=/tmp/testshell.$LOGNAME.out
 err () { echo "***ERROR: $*" >&2; exit 1; }
 warn () { echo "###Warning: $*" >&2; }
 V () { :;}; T () { :;}; v=false; E () { echo "$@";}; En () { echo -n "$@";}
 Vn () { :;}
 while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
-    -v) V () { echo "== $*" >&2;}; Vn () { echo -n "== $*" >&2;}; v=true
-    T () { local i;En "==";for i in $*; do En " $i="`eval E '$'$i`;done;E;};;
-	*) echo "$USAGE"; exit 1;
+  -v) V () { echo "== $*" >&2;}; Vn () { echo -n "== $*" >&2;}; v=true
+      T () { local i;En "==";for i in $*;do En " $i="`eval E '$'$i`;done;E;};;
+  -x) debug=true; rm -f $debuglog;;
+  *) echo "$USAGE"; exit 1;
 esac;shift; done; if test "_$1" = "_--";then shift; fi
 if [ $# = 0 ]; then echo "$USAGE"; exit 1; fi
 
@@ -81,26 +86,33 @@ ts_test_path () {
 # execute a test in the current directory
 ts_test () {
   local t="$1"
-  Vn "Test: $t:"
-  ./"$t" >$ttmp.out 2>$ttmp.err; status=$?
-  let 'ts_failures += status'
-  if [ $status = 0 ]; then
-    if test -s $ttmp.err; then 
-      if $v; then echo "OK, but printed on stderr:"
-      else echo "###Warning: test $t OK, but printed on stderr:"
-      fi
-      print_indent $ttmp.err
-    else
-      $v && echo " OK"
-    fi
+  if $debug; then
+    echo "#################################################################
+###################### Test: $t:
+#################################################################" >>$debuglog
+    bash -x "$t" 2>>$debuglog; status=$?
   else
-    if $v; then echo "***ERRORS:$status"
-    else echo "***FAILED ($status ERRORS): $t"
+     Vn "Test: $t:"
+    ./"$t" >$ttmp.out 2>$ttmp.err; status=$?
+    let 'ts_failures += status'
+    if [ $status = 0 ]; then
+      if test -s $ttmp.err; then 
+	if $v; then echo "OK, but printed on stderr:"
+	else echo "###Warning: test $t OK, but printed on stderr:"
+	fi
+	print_indent $ttmp.err
+      else
+	$v && echo " OK"
+      fi
+    else
+      if $v; then echo "***ERRORS:$status"
+      else echo "***FAILED ($status ERRORS): $t"
+      fi
+      if test -s $ttmp.err; then print_indent $ttmp.err; fi
     fi
-    if test -s $ttmp.err; then print_indent $ttmp.err; fi
+    if $v && test -s $ttmp.out; then print_indent $ttmp.out; fi
+    rm -rf $tmp $tmp.*
   fi
-  if $v && test -s $ttmp.out; then print_indent $ttmp.out; fi
-  rm -rf $tmp $tmp.*
 }
 
 # print test outputs indented by 3 spaces for lisibility
@@ -124,4 +136,5 @@ rm -rf $ttmp $ttmp.* $tmp $tmp.*
 if [ $ts_failures = 0 ]; then V "All tests OK =="
 else echo "== ***** Total tests failed: $ts_failures *****"
 fi
+$debug && echo "== log of execution in $debuglog"
 exit $ts_failures
