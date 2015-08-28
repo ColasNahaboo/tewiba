@@ -10,7 +10,7 @@ Features
    * A self-contained script, with no dependencies
    * Geared for various custom tests in mixed environnements, in silent mode.
      For a more formal and systematic way, such as Unit testing,
-     we recommend https://code.google.com/p/shunit2/
+     we recommend https://github.com/kward/shunit2
 
 QuickStart
 ==========
