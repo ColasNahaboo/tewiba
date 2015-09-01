@@ -1,11 +1,16 @@
 #!/bin/bash
+export TESTSHELL=1.1
 USAGE='testshell [options] [tests...]
-Runs the test suite, on all tests (default), or on specific tests given as 
-arguments.
+Runs the test suite, on all tests in the current dir (default), 
+or on specific tests given as arguments.
    * Tests are given as arguments, and executed in order, they can be either
       * an executable file
       * a directory, all executable files in it will be run as tests
+        Filenames beginning with a . # _ or ending with "~" are ignored
         no recursion is done, subdirs will not be explicitely scanned
+        if a file __INIT__ is found, it will be sourced into the shell
+          so that its definitions will be available for all the tests
+        Same, if an __END__ file is found, it will be sourced after the tests
    * Nothing is printed if all tests OK. On failure, the stderr is printed
    * Tests exit code must be the number of failed tests (0 = OK)
    * A warning is printed if the test was OK but printed on stderr
@@ -17,13 +22,14 @@ How to write tests:
    * Tests are executable files, that exit with code 0  if OK, and the number 
      of failure if not
    * Give tests meaningful names. "Test for empty input" rather than "ei.test"
-   * Filenames beginning with a "." or "#", or ending with "~" are ignored
+   * Filenames beginning with a "." "#" "_" or ending with "~" are ignored
+     as well as files named "testshell"
    * They must print on stderr an explanation of the error, or a warning if 
      exit code is 0. Prints on stdout are only shonw in verbose mode
    * Tests can create temporary files and dirs prefixed by "$tmp."
      they will be automatically cleaned afterwards by rm -rf $tmp $tmp.*
    * Test data can be put in subdirectories, as subdirectories are not tested
-   * Convenience functions that you can use:
+   * Convenience functions & variables that you can use:
      TEST message    prints (sub)test name if verbose
      $TV             is true in verbose mode, false otherwise
      TERR message    declare an error, but continues the tests
@@ -31,19 +37,29 @@ How to write tests:
      TEND            terminate your test script with this line = exit $TFAILS
      $nl             is the newline character
      $tmp            temporary data prefix (see above)
+     $TESTSHELL      the version number of testshell. 
+                     Trick: put after #!/bin/bash the line:
+                     [ -n "$TESTSHELL" ] || testshell -v "$0"
+                     so that the test file can be executed standalone
+     $TESTSHELLDIR   the original directory where testshell was run
 
 Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
    -x      debug: execute each test in set -x more copying also the output to
            /tmp/testshell.$LOGNAME.out Note: does not imply -v
+   -s file   outputs the total number of errors in the file. 
+             Default is ".testshell.errors" in current dir
 
-Version 0.3 - Web site: http://colas.nahaboo.net/Software/TestShell
-Copyright (c) 2013 Colas Nahaboo (http://colas.nahaboo.net)
+Version '"$TESTSHELL"' - Web site: http://colas.nahaboo.net/Software/TestShell
+Copyright (c) 2013-2015 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
 '
 
 export debug=false
 export debuglog=/tmp/testshell.$LOGNAME.out
+export statusfile=$PWD/.testshell.errors
+export TESTSHELLDIR="$PWD"
+
 err () { echo "***ERROR: $*" >&2; exit 1; }
 warn () { echo "###Warning: $*" >&2; }
 V () { :;}; T () { :;}; TV=false; E () { echo "$@";}; En () { echo -n "$@";}
@@ -58,7 +74,6 @@ if [ $# = 0 ]; then echo "$USAGE"; exit 1; fi
 
 export ts_failures=0
 export tmp=/tmp/testshell.$$
-export TRES=$PWD/.testshell.res; rm -f $TRES
 ttmp=/tmp/testshell-main.$$
 export nl=$'\n'
 export TFAILS=0
@@ -78,10 +93,13 @@ err_cd () {
 ts_dir () {
   local i oldpwd="$PWD"
   err_cd "$1" 
-  for i in *; do 
-    [[ $i =~ (^'#'|~$) ]] || [ ! -x "$i" -o -d "$i" ] && continue
+  [ -x __INIT__ ] && source __INIT__
+  for i in *; do
+    [[ $i =~ (^[#._]|~$) ]] || [ ! -x "$i" -o -d "$i" ] ||
+      [ "$i" = testshell ] && continue
     ts_test "$i"
   done
+  [ -x __END__ ] && source __END__
   cd "$oldpwd"
 }
 
@@ -129,16 +147,19 @@ ts_test () {
 # print test outputs indented by 3 spaces for lisibility
 print_indent () { sed -e 's/^/   /' <"$1"; }
 
-# run all tests given in argument
-for t in "$@"; do
-  if [  -d "$t" ]; then ts_dir "$t"
-  elif [ -x "$t" ]; then 
+# run all tests given in argument, or in the dir
+if [ $# == 0 ]; then ts_dir .
+else
+  for t in "$@"; do
+    if [  -d "$t" ]; then ts_dir "$t"
+    elif [ -x "$t" ]; then 
       if [[ $t =~ / ]]; then ts_test_path "$t"
       else ts_test "$t"
       fi
-  else err "$t is not a test!"
-  fi
-done
+    else err "$t is not a test!"
+    fi
+  done
+fi
 
 # cleanup temp files
 rm -rf $ttmp $ttmp.* $tmp $tmp.*
@@ -148,5 +169,5 @@ if [ $ts_failures = 0 ]; then V "All tests OK =="
 else echo "== ***** Total tests failed: $ts_failures *****"
 fi
 $debug && echo "== log of execution in $debuglog"
-echo $ts_failures >$TRES
+[ -n "$statusfile" ] && echo "$ts_failures" >"$statusfile"
 exit $ts_failures
