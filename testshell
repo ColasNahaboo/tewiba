@@ -70,7 +70,6 @@ while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
   -x) debug=true; rm -f $debuglog;;
   *) echo "$USAGE"; exit 1;
 esac;shift; done; if test "_$1" = "_--";then shift; fi
-if [ $# = 0 ]; then echo "$USAGE"; exit 1; fi
 
 export ts_failures=0
 export tmp=/tmp/testshell.$$
