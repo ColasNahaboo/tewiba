@@ -22,13 +22,13 @@ How to write tests:
    * Tests can create temporary files and dirs prefixed by "$tmp."
      they will be automatically cleaned afterwards
    * Test data can be put in subdirectories, as subdirectories are not tested
-   * A common way to write bash tests is to begin with:
-        error="the common prefix for all message errors of this test file"
-        error () { echo "$error $*" >&2; let fails++; }; fails=0
-     Run the cxode to test, and on each error, just call: 
-        error "the-error-message"
-     And end with a:
-        exit $fails
+   * Convenience functions that you can use:
+     TEST message    prints (sub)test name if verbose
+     $TV             is true in verbose mode, false otherwise
+     TERR message    declare an error, but continues the tests
+     ERR message     declare an error, but stops the current test file only
+     exit $fails     termninate your stest script with this line
+     $nl             is the newline character
 
 Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
@@ -44,10 +44,10 @@ export debug=false
 export debuglog=/tmp/testshell.$LOGNAME.out
 err () { echo "***ERROR: $*" >&2; exit 1; }
 warn () { echo "###Warning: $*" >&2; }
-V () { :;}; T () { :;}; v=false; E () { echo "$@";}; En () { echo -n "$@";}
+V () { :;}; T () { :;}; TV=false; E () { echo "$@";}; En () { echo -n "$@";}
 Vn () { :;}
 while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
-  -v) V () { echo "== $*" >&2;}; Vn () { echo -n "== $*" >&2;}; v=true
+  -v) V () { echo "== $*" >&2;}; Vn () { echo -n "== $*" >&2;}; TV=true
       T () { local i;En "==";for i in $*;do En " $i="`eval E '$'$i`;done;E;};;
   -x) debug=true; rm -f $debuglog;;
   *) echo "$USAGE"; exit 1;
@@ -57,6 +57,10 @@ if [ $# = 0 ]; then echo "$USAGE"; exit 1; fi
 export ts_failures=0
 export tmp=/tmp/testshell.$$
 ttmp=/tmp/testshell-main.$$
+export nl=$'\n'
+TEST () { $TV && echo "== $*" >&2;}
+TERR () { echo "***TEST ERROR $0*** $*" >&2; let fails++; }
+ERR () { echo "***FATAL ERROR $0*** $*" >&2; let fails++; exit $fails; }
 
 # guarded cd
 err_cd () {
@@ -86,6 +90,7 @@ ts_test_path () {
 # execute a test in the current directory
 ts_test () {
   local t="$1"
+  export fails=0
   if $debug; then
     echo "#################################################################
 ###################### Test: $t:
@@ -97,20 +102,20 @@ ts_test () {
     let 'ts_failures += status'
     if [ $status = 0 ]; then
       if test -s $ttmp.err; then 
-	if $v; then echo "OK, but printed on stderr:"
+	if $TV; then echo "OK, but printed on stderr:"
 	else echo "###Warning: test $t OK, but printed on stderr:"
 	fi
 	print_indent $ttmp.err
       else
-	$v && echo " OK"
+	$TV && echo " OK"
       fi
     else
-      if $v; then echo "***ERRORS:$status"
+      if $TV; then echo "***ERRORS:$status"
       else echo "***FAILED ($status ERRORS): $t"
       fi
       if test -s $ttmp.err; then print_indent $ttmp.err; fi
     fi
-    if $v && test -s $ttmp.out; then print_indent $ttmp.out; fi
+    if $TV && test -s $ttmp.out; then print_indent $ttmp.out; fi
     rm -rf $tmp $tmp.*
   fi
 }
