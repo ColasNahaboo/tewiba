@@ -10,7 +10,8 @@ arguments.
    * Tests exit code must be the number of failed tests (0 = OK)
    * A warning is printed if the test was OK but printed on stderr
    * Tests are run in their directory
-   * Exit code is the number of failed tests
+   * Exit code is the number of failed tests. 
+     It is also written in .testshell.res
 
 How to write tests:
    * Tests are executable files, that exit with code 0  if OK, and the number 
@@ -57,6 +58,7 @@ if [ $# = 0 ]; then echo "$USAGE"; exit 1; fi
 
 export ts_failures=0
 export tmp=/tmp/testshell.$$
+export TRES=$PWD/.testshell.res; rm -f $TRES
 ttmp=/tmp/testshell-main.$$
 export nl=$'\n'
 export TFAILS=0
@@ -146,4 +148,5 @@ if [ $ts_failures = 0 ]; then V "All tests OK =="
 else echo "== ***** Total tests failed: $ts_failures *****"
 fi
 $debug && echo "== log of execution in $debuglog"
+echo $ts_failures >$TRES
 exit $ts_failures
