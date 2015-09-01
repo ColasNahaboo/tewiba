@@ -32,8 +32,3 @@ Test suite
 ==========
 
 You can run the tests on tewiba itself via: ./tewiba tests
-
-TODO
-====
-* Web site
-? options to customise output messages
