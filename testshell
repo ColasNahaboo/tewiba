@@ -20,15 +20,16 @@ How to write tests:
    * They must print on stderr an explanation of the error, or a warning if 
      exit code is 0. Prints on stdout are only shonw in verbose mode
    * Tests can create temporary files and dirs prefixed by "$tmp."
-     they will be automatically cleaned afterwards
+     they will be automatically cleaned afterwards by rm -rf $tmp $tmp.*
    * Test data can be put in subdirectories, as subdirectories are not tested
    * Convenience functions that you can use:
      TEST message    prints (sub)test name if verbose
      $TV             is true in verbose mode, false otherwise
      TERR message    declare an error, but continues the tests
      ERR message     declare an error, but stops the current test file only
-     TEND            terminate your test script with this line = exit $fails
+     TEND            terminate your test script with this line = exit $TFAILS
      $nl             is the newline character
+     $tmp            temporary data prefix (see above)
 
 Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
@@ -58,9 +59,12 @@ export ts_failures=0
 export tmp=/tmp/testshell.$$
 ttmp=/tmp/testshell-main.$$
 export nl=$'\n'
-TEST () { $TV && echo "== $*" >&2;}
+export TFAILS=0
+TEST () { $TV && echo "== $*"; }
 TERR () { echo "***TEST ERROR $0*** $*" >&2; let fails++; }
-ERR () { echo "***FATAL ERROR $0*** $*" >&2; let fails++; exit $fails; }
+ERR () { echo "***FATAL ERROR $0*** $*" >&2; let fails++; exit $TFAILS; }
+TEND () { exit $TFAILS; }
+export -f TEST TERR ERR TEND
 
 # guarded cd
 err_cd () {
@@ -90,7 +94,7 @@ ts_test_path () {
 # execute a test in the current directory
 ts_test () {
   local t="$1"
-  export fails=0
+  TFAILS=0
   if $debug; then
     echo "#################################################################
 ###################### Test: $t:
