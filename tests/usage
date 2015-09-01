@@ -1,12 +1,12 @@
 #!/bin/bash
-[ -n "$TESTSHELL" ] || exec testshell -v "$0"
+[ -n "$TEWIBA" ] || exec tewiba -v "$0"
 
-res=$(../testshell -bogus)
+res=$(../tewiba -bogus)
 
 [ $? = 0 ] \
   && TERR "did not return an error"
 
-[[ $res =~ ^testshell\ [[]options[]]\ [[]tests[.][.][.][]] ]] \
+[[ $res =~ ^tewiba\ [[]options[]]\ [[]tests[.][.][.][]] ]] \
   || TERR "did not print the usage"
 
 TEND

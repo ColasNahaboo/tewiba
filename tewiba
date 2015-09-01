@@ -1,8 +1,9 @@
 #!/bin/bash
-export TESTSHELL=1.1
-USAGE='testshell [options] [tests...]
+export TEWIBA=1.0
+USAGE='tewiba [options] [tests...]
+Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
-or on specific tests given as arguments.
+or on specific tests or directories of tests given as arguments.
    * Tests are given as arguments, and executed in order, they can be either
       * an executable file
       * a directory, all executable files in it will be run as tests
@@ -16,49 +17,49 @@ or on specific tests given as arguments.
    * A warning is printed if the test was OK but printed on stderr
    * Tests are run in their directory
    * Exit code is the number of failed tests. 
-     It is also written in .testshell.res
+     It is also written in .tewiba.res
 
 How to write tests:
-   * Tests are executable files, that exit with code 0  if OK, and the number 
+   * Tests are executable files, that exit with code 0 if OK, and the number 
      of failure if not
    * Give tests meaningful names. "Test for empty input" rather than "ei.test"
    * Filenames beginning with a "." "#" "_" or ending with "~" are ignored
-     as well as files named "testshell"
+     as well as files named "tewiba"
    * They must print on stderr an explanation of the error, or a warning if 
      exit code is 0. Prints on stdout are only shonw in verbose mode
    * Tests can create temporary files and dirs prefixed by "$tmp."
      they will be automatically cleaned afterwards by rm -rf $tmp $tmp.*
    * Test data can be put in subdirectories, as subdirectories are not tested
-   * Convenience functions & variables that you can use:
-     TEST message    prints (sub)test name if verbose
-     TERR message    declares an error, but continues the tests
-     ERR  message    declares an error, but aborts the current test file
-     TEND            terminates your test script (alias for: exit $TFAILS)
-     $TV             is true in verbose mode, false otherwise
-     $tmp            temporary data prefix (see above)
-     $nl             is the newline character
-     $TESTSHELL      the version number of testshell. 
-                     Trick: put after #!/bin/bash the line:
-                     [ -n "$TESTSHELL" ] || exec testshell -v "$0"
-                     so that the test file can be executed standalone
-     $TESTSHELLDIR   the original directory where testshell was run
+   * Convenience functions & variables that you can use in tests:
+     TEST message  prints (sub)test name if verbose
+     TERR message  declares an error, but continues the tests
+     ERR  message  declares an error, but aborts the current test file
+     TEND          terminates your test script (alias for: exit $TFAILS)
+     $TV           is true in verbose mode, false otherwise
+     $tmp          temporary data prefix (see above)
+     $nl           is the newline character
+     $TEWIBA       the version number of tewiba. 
+                   Trick: put after #!/bin/bash the line:
+                   [ -n "$TEWIBA" ] || exec tewiba -v "$0"
+                   so that the test file can be executed standalone
+     $TEWIBADIR    the original directory where tewiba was run
 
 Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
    -x      debug: execute each test in set -x more copying also the output to
-           /tmp/testshell.$LOGNAME.out Note: does not imply -v
-   -s file   outputs the total number of errors in the file. 
-             Default is ".testshell.errors" in current dir
+           /tmp/tewiba.$LOGNAME.out Note: does not imply -v
+   -s file outputs the total number of errors in the file. 
+           Default is ".tewiba.errors" in current dir
 
-Version '"$TESTSHELL"' - Web site: http://colas.nahaboo.net/Software/TestShell
+Version '"$TEWIBA"' - Web site: http://colas.nahaboo.net/Software/Tewiba
 Copyright (c) 2013-2015 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
 '
 
 export debug=false
-export debuglog=/tmp/testshell.$LOGNAME.out
-export statusfile=$PWD/.testshell.errors
-export TESTSHELLDIR="$PWD" TV
+export debuglog=/tmp/tewiba.$LOGNAME.out
+export statusfile=$PWD/.tewiba.errors
+export TEWIBADIR="$PWD" TV
 
 err () { echo "***ERROR: $*" >&2; exit 1; }
 warn () { echo "###Warning: $*" >&2; }
@@ -72,8 +73,8 @@ while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
 esac;shift; done; if test "_$1" = "_--";then shift; fi
 
 export ts_failures=0
-export tmp=/tmp/testshell.$$
-ttmp=/tmp/testshell-main.$$
+export tmp=/tmp/tewiba.$$
+ttmp=/tmp/tewiba-main.$$
 export nl=$'\n' #'
 export TFAILS=0
 export TDIR=
@@ -83,10 +84,10 @@ ERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2; let fails++; exit $TFAILS; }
 TEND () { exit $TFAILS; }
 export -f TEST TERR ERR TEND
 
-# guarded cd
+# cautious cd
 err_cd () {
   cd "$1" 2>/dev/null || \
-  err "testshell failed to enter test dir: "$(readlink -m "$1")
+  err "tewiba failed to enter test dir: "$(readlink -m "$1")
 }
 
 # executes all the tests that are direct sons of a dir
@@ -95,20 +96,21 @@ ts_dir () {
   err_cd "$1" 
   for i in *; do
     [[ $i =~ (^[#._]|~$) ]] || [ ! -x "$i" -o -d "$i" ] ||
-      [ "$i" = testshell ] && continue
+      [ "$i" = tewiba ] && continue
     ts_test "$i"
   done
   cd "$oldpwd"
 }
 
-# execute a test in its directory
+# go execute a test in its directory
 ts_test_path () {
     local path=$(readlink -m "$1") oldpwd="$PWD"
     err_cd "${path%/*}"
     ts_test "${path##*/}"
     cd "$oldpwd"
 }
-    
+
+# on entering a dir, execute __INIT__
 ts_init () {
   local tdir=$(/bin/pwd)
   if [ "$tdir" != "$TDIR" ]; then
@@ -117,22 +119,20 @@ ts_init () {
     TDIR="$tdir"
   fi
 }
-
+# on leaving, execute __END__
 ts_end () {
   [ -n "$TDIR" ] && [ -x "$TDIR"/__END__ ] && { 
     local TODIR="$PWD"; cd "$TDIR"; source __END__; cd "$TODIR"
   }
 }
 
-# execute a test in the current directory
+# execute a single test in the current directory
 ts_test () {
-  local t="$1"
+  local t="$1" s="#################################"
   ts_init
   TFAILS=0
   if $debug; then
-    echo "#################################################################
-###################### Test: $t:
-#################################################################" >>$debuglog
+    echo "$s$s$s$nl$s Test: $t$nl$s$s$s" >>$debuglog
     bash -x "$t" 2>>$debuglog; status=$?
   else
      Vn "Test: $t:"
@@ -162,7 +162,7 @@ ts_test () {
 print_indent () { sed -e 's/^/   /' <"$1"; }
 
 ####################################################################### Main
-# run all tests given in argument, or in the dir
+# run all tests given in arguments, or in the current dir if none given
 if [ $# == 0 ]; then ts_dir .
 else
   for t in "$@"; do
@@ -180,7 +180,7 @@ ts_end
 # cleanup temp files
 rm -rf $ttmp $ttmp.* $tmp $tmp.*
 
-# print global tests results
+# print global tests results, and exit
 if [ $ts_failures = 0 ]; then V "All tests OK =="
 else echo "== ***** Total tests failed: $ts_failures *****"
 fi

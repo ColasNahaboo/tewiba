@@ -1,4 +1,4 @@
-testshell: A simple test suite, in the spirit of shell scripting
+Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 
 Features
 ========
@@ -15,23 +15,23 @@ Features
 QuickStart
 ==========
 
-   * copy the "testshell" script somewhere in your distrib, or put it somwhere
+   * copy the "tewiba" script somewhere in your distrib, or put it somwhere
      in your path. It is self-contained and has no dependencies
    * decide of a dir TTT where you will put your tests, and write them there
      default is a subdir dir named "tests" of current dir
-   * run the tests by: testshell -d TTT
-     For more info, run: testshell -?
+   * run the tests by: tewiba TTT
+     For more info, run: tewiba -?
 
 License
 =======
-Web site: http://colas.nahaboo.net/Software/TestShell
+Web site: http://colas.nahaboo.net/Software/Tewiba
 Copyright (c) 2013 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
 
 Test suite
 ==========
 
-You can run the tests on testshell itself via: ./testshell -v tests
+You can run the tests on tewiba itself via: ./tewiba tests
 
 TODO
 ====

@@ -1,6 +1,6 @@
 #!/bin/bash
 # checks that __INIT__ and __END__ are properly executed
-[ -n "$TESTSHELL" ] || exec testshell -v "$0"
+[ -n "$TEWIBA" ] || exec tewiba -v "$0"
 
 opt=; $TV && opt=-v
-../testshell $opt begin-end.data1 begin-end.data2
+../tewiba $opt begin-end.data1 begin-end.data2
