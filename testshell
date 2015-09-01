@@ -39,7 +39,7 @@ How to write tests:
      $tmp            temporary data prefix (see above)
      $TESTSHELL      the version number of testshell. 
                      Trick: put after #!/bin/bash the line:
-                     [ -n "$TESTSHELL" ] || testshell -v "$0"
+                     [ -n "$TESTSHELL" ] || exec testshell -v "$0"
                      so that the test file can be executed standalone
      $TESTSHELLDIR   the original directory where testshell was run
 
