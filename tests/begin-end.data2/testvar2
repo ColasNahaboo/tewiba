@@ -1,0 +1,5 @@
+TEST test var1
+[ "$myvar1" == ufueaaiebcai ] && TERR myvar1 defined
+TEST test var2
+[ "$myvar2" == i879hnq43 ] || TERR myvar2 undefined
+TEND

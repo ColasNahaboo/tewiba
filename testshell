@@ -8,9 +8,9 @@ or on specific tests given as arguments.
       * a directory, all executable files in it will be run as tests
         Filenames beginning with a . # _ or ending with "~" are ignored
         no recursion is done, subdirs will not be explicitely scanned
-        if a file __INIT__ is found, it will be sourced into the shell
-          so that its definitions will be available for all the tests
-        Same, if an __END__ file is found, it will be sourced after the tests
+     if an executable file __INIT__ is found, it will be sourced into the shell
+     so that its definitions will be available for all the tests in it
+     Same, if an __END__ file is found, it will be sourced after the tests
    * Nothing is printed if all tests OK. On failure, the stderr is printed
    * Tests exit code must be the number of failed tests (0 = OK)
    * A warning is printed if the test was OK but printed on stderr
@@ -31,12 +31,12 @@ How to write tests:
    * Test data can be put in subdirectories, as subdirectories are not tested
    * Convenience functions & variables that you can use:
      TEST message    prints (sub)test name if verbose
+     TERR message    declares an error, but continues the tests
+     ERR  message    declares an error, but aborts the current test file
+     TEND            terminates your test script (alias for: exit $TFAILS)
      $TV             is true in verbose mode, false otherwise
-     TERR message    declare an error, but continues the tests
-     ERR message     declare an error, but stops the current test file only
-     TEND            terminate your test script with this line = exit $TFAILS
-     $nl             is the newline character
      $tmp            temporary data prefix (see above)
+     $nl             is the newline character
      $TESTSHELL      the version number of testshell. 
                      Trick: put after #!/bin/bash the line:
                      [ -n "$TESTSHELL" ] || exec testshell -v "$0"
@@ -58,7 +58,7 @@ MIT License: http://opensource.org/licenses/MIT
 export debug=false
 export debuglog=/tmp/testshell.$LOGNAME.out
 export statusfile=$PWD/.testshell.errors
-export TESTSHELLDIR="$PWD"
+export TESTSHELLDIR="$PWD" TV
 
 err () { echo "***ERROR: $*" >&2; exit 1; }
 warn () { echo "###Warning: $*" >&2; }
@@ -78,8 +78,8 @@ export nl=$'\n' #'
 export TFAILS=0
 export TDIR=
 TEST () { $TV && echo "== $*"; }
-TERR () { echo "***TEST ERROR $0*** $*" >&2; let fails++; }
-ERR () { echo "***FATAL ERROR $0*** $*" >&2; let fails++; exit $TFAILS; }
+TERR () { echo "***TEST ERROR ${0##*/}*** $*" >&2; let fails++; }
+ERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2; let fails++; exit $TFAILS; }
 TEND () { exit $TFAILS; }
 export -f TEST TERR ERR TEND
 
@@ -119,7 +119,9 @@ ts_init () {
 }
 
 ts_end () {
-  [ -n "$TDIR" ] && [ -x "$TDIR"/__END__ ] && (cd "$TDIR"; source __END__)
+  [ -n "$TDIR" ] && [ -x "$TDIR"/__END__ ] && { 
+    local TODIR="$PWD"; cd "$TDIR"; source __END__; cd "$TODIR"
+  }
 }
 
 # execute a test in the current directory
