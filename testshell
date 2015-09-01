@@ -27,7 +27,7 @@ How to write tests:
      $TV             is true in verbose mode, false otherwise
      TERR message    declare an error, but continues the tests
      ERR message     declare an error, but stops the current test file only
-     exit $fails     termninate your stest script with this line
+     TEND            terminate your test script with this line = exit $fails
      $nl             is the newline character
 
 Options:
