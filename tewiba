@@ -33,7 +33,7 @@ How to write tests:
    * Convenience functions & variables that you can use in tests:
      TEST message  prints (sub)test name if verbose
      TERR message  declares an error, but continues the tests
-     ERR  message  declares an error, but aborts the current test file
+     FERR message  fatal error: also aborts the current test file
      TEND          terminates your test script (alias for: exit $TFAILS)
      $TV           is true in verbose mode, false otherwise
      $tmp          temporary data prefix (see above)
@@ -80,9 +80,9 @@ export TFAILS=0
 export TDIR=
 TEST () { $TV && echo "== $*"; }
 TERR () { echo "***TEST ERROR ${0##*/}*** $*" >&2; let fails++; }
-ERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2; let fails++; exit $TFAILS; }
+FERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2; let fails++; exit $TFAILS; }
 TEND () { exit $TFAILS; }
-export -f TEST TERR ERR TEND
+export -f TEST TERR FERR TEND
 
 # cautious cd
 err_cd () {
