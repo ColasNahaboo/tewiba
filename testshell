@@ -74,8 +74,9 @@ esac;shift; done; if test "_$1" = "_--";then shift; fi
 export ts_failures=0
 export tmp=/tmp/testshell.$$
 ttmp=/tmp/testshell-main.$$
-export nl=$'\n'
+export nl=$'\n' #'
 export TFAILS=0
+export TDIR=
 TEST () { $TV && echo "== $*"; }
 TERR () { echo "***TEST ERROR $0*** $*" >&2; let fails++; }
 ERR () { echo "***FATAL ERROR $0*** $*" >&2; let fails++; exit $TFAILS; }
@@ -92,13 +93,11 @@ err_cd () {
 ts_dir () {
   local i oldpwd="$PWD"
   err_cd "$1" 
-  [ -x __INIT__ ] && source __INIT__
   for i in *; do
     [[ $i =~ (^[#._]|~$) ]] || [ ! -x "$i" -o -d "$i" ] ||
       [ "$i" = testshell ] && continue
     ts_test "$i"
   done
-  [ -x __END__ ] && source __END__
   cd "$oldpwd"
 }
 
@@ -110,9 +109,23 @@ ts_test_path () {
     cd "$oldpwd"
 }
     
+ts_init () {
+  local tdir=$(/bin/pwd)
+  if [ "$tdir" != "$TDIR" ]; then
+    ts_end
+    [ -x __INIT__ ] && source __INIT__
+    TDIR="$tdir"
+  fi
+}
+
+ts_end () {
+  [ -n "$TDIR" ] && [ -x "$TDIR"/__END__ ] && (cd "$TDIR"; source __END__)
+}
+
 # execute a test in the current directory
 ts_test () {
   local t="$1"
+  ts_init
   TFAILS=0
   if $debug; then
     echo "#################################################################
@@ -146,6 +159,7 @@ ts_test () {
 # print test outputs indented by 3 spaces for lisibility
 print_indent () { sed -e 's/^/   /' <"$1"; }
 
+####################################################################### Main
 # run all tests given in argument, or in the dir
 if [ $# == 0 ]; then ts_dir .
 else
@@ -159,6 +173,7 @@ else
     fi
   done
 fi
+ts_end
 
 # cleanup temp files
 rm -rf $ttmp $ttmp.* $tmp $tmp.*
