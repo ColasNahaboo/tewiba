@@ -48,7 +48,8 @@ Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
    -x      debug: execute each test in set -x more copying also the output to
            /tmp/tewiba.$LOGNAME.out Note: does not imply -v
-   -s file outputs the total number of errors in the file. 
+   -s      standalone: do not read __INIT__ nor __END__ files
+   -e file outputs the total number of errors in the file. 
            Default is ".tewiba.errors" in current dir
 
 Version '"$TEWIBA"' - Web site: http://colas.nahaboo.net/Software/Tewiba
@@ -59,7 +60,9 @@ MIT License: http://opensource.org/licenses/MIT
 export debug=false
 export debuglog=/tmp/tewiba.$LOGNAME.out
 export statusfile=$PWD/.tewiba.errors
-export TEWIBADIR="$PWD" TV
+export ts_standalone=false
+export TEWIBADIR="$PWD"
+export TV
 
 err () { echo "***ERROR: $*" >&2; exit 1; }
 warn () { echo "###Warning: $*" >&2; }
@@ -69,6 +72,8 @@ while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
   -v) V () { echo "== $*" >&2;}; Vn () { echo -n "== $*" >&2;}; TV=true
       T () { local i;En "==";for i in $*;do En " $i="`eval E '$'$i`;done;E;};;
   -x) debug=true; rm -f $debuglog;;
+  -e) statusfile="$2"; shift;;
+  -s) ts_standalone=true;;
   *) echo "$USAGE"; exit 1;
 esac;shift; done; if test "_$1" = "_--";then shift; fi
 
@@ -112,6 +117,7 @@ ts_test_path () {
 
 # on entering a dir, execute __INIT__
 ts_init () {
+  $ts_standalone && return
   local tdir=$(/bin/pwd)
   if [ "$tdir" != "$TDIR" ]; then
     ts_end

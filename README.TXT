@@ -7,6 +7,7 @@ Features
       * Success is the 0 exit code
       * Description of problems in stderr
       * Mundane info on stdout
+   * Some convenience functions are provided however: TEST, TERR, TEND, ...
    * A self-contained script, with no dependencies
    * Geared for various custom tests in mixed environnements, in silent mode.
      For a more formal and systematic way, such as Unit testing,
@@ -18,7 +19,8 @@ QuickStart
    * copy the "tewiba" script somewhere in your distrib, or put it somwhere
      in your path. It is self-contained and has no dependencies
    * decide of a dir TTT where you will put your tests, and write them there
-     default is a subdir dir named "tests" of current dir
+     For instance, a subdir dir named "tests" of current dir, where you can
+     put also tewiba, and run all tests by: cd tests && ./tewiba
    * run the tests by: tewiba TTT
      For more info, run: tewiba -?
 
