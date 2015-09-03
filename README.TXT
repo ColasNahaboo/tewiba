@@ -10,8 +10,10 @@ Features
    * Some convenience functions are provided however: TEST, TERR, TEND, ...
    * A self-contained script, with no dependencies
    * Geared for various custom tests in mixed environnements, in silent mode.
-     For a more formal and systematic way, such as Unit testing,
-     we recommend https://github.com/kward/shunit2
+     Useful for integration tests where each test can be quite complex and
+     do not additional complexity from the test framework.
+     For more complete frameworrks that can be desirable in for unit tests
+     you can look at systems like https://github.com/kward/shunit2
 
 QuickStart
 ==========

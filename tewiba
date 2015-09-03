@@ -31,6 +31,7 @@ How to write tests:
      they will be automatically cleaned afterwards by rm -rf $tmp $tmp.*
    * Test data can be put in subdirectories, as subdirectories are not tested
    * Convenience functions & variables that you can use in tests:
+     TLEVEL chars  test levels (for -l). Each level is an alphanumeric char
      TEST message  prints (sub)test name if verbose
      TERR message  declares an error, but continues the tests
      FERR message  fatal error: also aborts the current test file
@@ -48,6 +49,9 @@ Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
    -x      debug: execute each test in set -x more copying also the output to
            /tmp/tewiba.$LOGNAME.out Note: does not imply -v
+   -l levels  runs only tests of the levels (characters) in the string levels
+           "TLEVEL x" in a test runs when given "-l y" if [y] matches x:
+           -l 0-3 matches a TLEVEL 17a
    -s      standalone: do not read __INIT__ nor __END__ files
    -e file outputs the total number of errors in the file. 
            Default is ".tewiba.errors" in current dir
@@ -62,6 +66,7 @@ export debuglog=/tmp/tewiba.$LOGNAME.out
 export statusfile=$PWD/.tewiba.errors
 export ts_standalone=false
 export TEWIBADIR="$PWD"
+export TLEVELS
 export TV
 
 err () { echo "***ERROR: $*" >&2; exit 1; }
@@ -73,6 +78,7 @@ while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
       T () { local i;En "==";for i in $*;do En " $i="`eval E '$'$i`;done;E;};;
   -x) debug=true; rm -f $debuglog;;
   -e) statusfile="$2"; shift;;
+  -l) TLEVELS="$2"; shift;;
   -s) ts_standalone=true;;
   *) echo "$USAGE"; exit 1;
 esac;shift; done; if test "_$1" = "_--";then shift; fi
@@ -83,11 +89,12 @@ ttmp=/tmp/tewiba-main.$$
 export nl=$'\n' #'
 export TFAILS=0
 export TDIR=
+TLEVEL () { [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || exit 0; }
 TEST () { $TV && echo "== $*"; }
 TERR () { echo "***TEST ERROR ${0##*/}*** $*" >&2; let fails++; }
 FERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2; let fails++; exit $TFAILS; }
 TEND () { exit $TFAILS; }
-export -f TEST TERR FERR TEND
+export -f TLEVEL TEST TERR FERR TEND
 
 # cautious cd
 err_cd () {
@@ -132,9 +139,20 @@ ts_end () {
   }
 }
 
+# will this test be run for the current level?
+# $1=test file, returns 0 if OK
+# we pre-detect it before running TLEVEL in file, avoiding extra "test ok" mess
+ts_level () {
+  local tlevel=$(grep -oP '^[[:space:]]*TLEVEL +\K.*' "$1")
+  [ -z "$tlevel" ] && return 0 # no TLEVEL line => OK
+  [ -z "$TLEVELS" ] || [[ $tlevel =~ [$TLEVELS] ]] || return 1
+  return 0
+}
+
 # execute a single test in the current directory
 ts_test () {
   local t="$1" s="#################################"
+  ts_level "$t" || return
   ts_init
   TFAILS=0
   if $debug; then
