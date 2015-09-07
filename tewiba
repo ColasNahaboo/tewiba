@@ -9,6 +9,7 @@ or on specific tests or directories of tests given as arguments.
       * a directory, all executable files in it will be run as tests
         Filenames beginning with a . # _ or ending with "~" are ignored
         no recursion is done, subdirs will not be explicitely scanned
+        except the ones ending in .subtests wthat will be also run
      if an executable file __INIT__ is found, it will be sourced into the shell
      so that its definitions will be available for all the tests in it
      Same, if an __END__ file is found, it will be sourced after the tests
@@ -21,8 +22,8 @@ or on specific tests or directories of tests given as arguments.
 
 How to write tests:
    * Tests are executable files, that exit with code 0 if OK, and the number 
-     of failure if not
-   * Give tests meaningful names. "Test for empty input" rather than "ei.test"
+     of failures if not
+   * Test file names can be meaningful, e.g: "Test for empty input"
    * Filenames beginning with a "." "#" "_" or ending with "~" are ignored
      as well as files named "tewiba"
    * They must print on stderr an explanation of the error, or a warning if 
@@ -107,9 +108,13 @@ ts_dir () {
   local i oldpwd="$PWD"
   err_cd "$1" 
   for i in *; do
-    [[ $i =~ (^[#._]|~$) ]] || [ ! -x "$i" -o -d "$i" ] ||
-      [ "$i" = tewiba ] && continue
-    ts_test "$i"
+    if [ -d "$i" ]; then
+      [[ $i =~ [.]subtests$ ]] && ts_dir "$i"
+    else
+      [[ $i =~ (^[#._]|~$) ]] || [ ! -x "$i" ] || [ "$i" = tewiba ] && 
+      continue
+      ts_test "$i"
+    fi
   done
   cd "$oldpwd"
 }
@@ -159,7 +164,7 @@ ts_test () {
     echo "$s$s$s$nl$s Test: $t$nl$s$s$s" >>$debuglog
     bash -x "$t" 2>>$debuglog; status=$?
   else
-     Vn "Test: $t:"
+    $TV && echo -n "== Test: $t:"
     ./"$t" >$ttmp.out 2>$ttmp.err; status=$?
     let 'ts_failures += status'
     if [ $status = 0 ]; then

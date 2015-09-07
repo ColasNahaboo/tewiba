@@ -1,0 +1,17 @@
+#!/bin/bash
+# checks:
+#      * a directory, all executable files in it will be run as tests
+#        Filenames beginning with a . # _ or ending with "~" are ignored
+#        no recursion is done, subdirs will not be explicitely scanned
+#        except the ones ending in .subtests wthat will be also run
+
+[ -n "$TEWIBA" ] || exec tewiba -v "$0"
+
+TEST recursion in dirs
+res=$(../tewiba -v recursion.data 2>/dev/null)
+tok='== Test: too2.subtests: OK
+== Test: tood.subtests-tests: OK
+== Test: toox: OK'
+
+[ "$res" = "$tok" ] || TERR "bad recursion, was:
+$res"
