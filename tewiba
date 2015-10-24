@@ -92,8 +92,8 @@ export TFAILS=0
 export TDIR=
 TLEVEL () { [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || exit 0; }
 TEST () { $TV && echo "== $*"; }
-TERR () { echo "***TEST ERROR ${0##*/}*** $*" >&2; let fails++; }
-FERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2; let fails++; exit $TFAILS; }
+TERR () { echo "***TEST ERROR ${0##*/}*** $*" >&2; let TFAILS++; }
+FERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2; let TFAILS++; exit $TFAILS; }
 TEND () { exit $TFAILS; }
 export -f TLEVEL TEST TERR FERR TEND
 
