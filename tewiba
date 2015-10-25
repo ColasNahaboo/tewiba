@@ -37,6 +37,10 @@ How to write tests:
      TERR message  declares an error, but continues the tests
      FERR message  fatal error: also aborts the current test file
      TEND          terminates your test script (alias for: exit $TFAILS)
+     TINIT id...   For each id (composed of letters, numbers, and _ - .)
+                   ensures that files __INIT__id and __END__id are sourced,
+                   if they exist, before and after all tests of the dir,
+                   after and before __INIT__ and __END__ respectively
      $TV           is true in verbose mode, false otherwise
      $tmp          temporary data prefix (see above)
      $nl           is the newline character
@@ -48,11 +52,11 @@ How to write tests:
 
 Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
-   -x      debug: execute each test in set -x more copying also the output to
+   -x      debug: execute each test in set -x mode copying also the output to
            /tmp/tewiba.$LOGNAME.out Note: does not imply -v
    -l levels  runs only tests of the levels (characters) in the string levels
            "TLEVEL x" in a test runs when given "-l y" if [y] matches x:
-           -l 0-3 matches a TLEVEL 17a
+           thus ranges are possible: -l 0-3 matches a TLEVEL 17a
    -s      standalone: do not read __INIT__ nor __END__ files
    -e file outputs the total number of errors in the file. 
            Default is ".tewiba.errors" in current dir
@@ -87,15 +91,24 @@ esac;shift; done; if test "_$1" = "_--";then shift; fi
 export ts_failures=0
 export tmp=/tmp/tewiba.$$
 ttmp=/tmp/tewiba-main.$$
+export TINITS=$ttmp.tinits.
 export nl=$'\n' #'
 export TFAILS=0
 export TDIR=
+export TIDS=' '
 TLEVEL () { [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || exit 0; }
 TEST () { $TV && echo "== $*"; }
 TERR () { echo "***TEST ERROR ${0##*/}*** $*" >&2; let TFAILS++; }
-FERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2; let TFAILS++; exit $TFAILS; }
+FERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2;let TFAILS++;exit $TFAILS; }
 TEND () { exit $TFAILS; }
-export -f TLEVEL TEST TERR FERR TEND
+TINIT () { # TINITS is a per-dir file containing the loaded IDs
+  local id="${1//[^-_.a-zA-Z0-9/}}"; [ -n "$id" ] || return; 
+  fgrep -qxs $id $TINITS && return; echo $id >>$TINITS
+  [ -x __INIT__$id ]] source __INIT__$id
+}
+TCLEANUP () { rm -rf $ttmp $ttmp.* $tmp $tmp.*; }; trap TCLEANUP 0
+
+export -f TLEVEL TEST TERR FERR TEND TINIT TCLEANUP
 
 # cautious cd
 err_cd () {
@@ -105,8 +118,9 @@ err_cd () {
 
 # executes all the tests that are direct sons of a dir
 ts_dir () {
-  local i oldpwd="$PWD"
-  err_cd "$1" 
+  local i oldpwd="$PWD" id
+  err_cd "$1"
+  export TINITS=${TINITS}x
   for i in *; do
     if [ -d "$i" ]; then
       [[ $i =~ [.]subtests$ ]] && ts_dir "$i"
@@ -116,6 +130,9 @@ ts_dir () {
       ts_test "$i"
     fi
   done
+  if [ -s $TINITS ]; then 
+    for id in $(cat $TINITS); do [ -x __END__$id ] && source __END__$id; done
+  fi
   cd "$oldpwd"
 }
 
@@ -205,9 +222,6 @@ else
   done
 fi
 ts_end
-
-# cleanup temp files
-rm -rf $ttmp $ttmp.* $tmp $tmp.*
 
 # print global tests results, and exit
 if [ $ts_failures = 0 ]; then V "All tests OK =="
