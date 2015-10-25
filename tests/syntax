@@ -1,0 +1,11 @@
+#!/bin/bash
+[ -n "$TEWIBA" ] || exec tewiba -v "$0"
+TEST check syntax of all scripts
+cd ..
+for i in $(find tewiba tests -type f); do 
+  if [ -x "$i" ] && [ -s "$i" ]; then
+    $TV && echo "   $i"
+    bash -n $i || TERR Syntax error in $i
+  fi
+done
+TEND

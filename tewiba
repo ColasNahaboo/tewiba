@@ -31,11 +31,14 @@ How to write tests:
      they will be automatically cleaned afterwards by rm -rf $tmp $tmp.*
    * Test data can be put in subdirectories, as subdirectories are not tested
    * Convenience functions & variables that you can use in tests:
-     TLEVEL chars  test levels (for -l). Each level is an alphanumeric char
+     TLEVEL chars  only runs if a level in chars is in the ones given by -l,
+                   of -l not specified. Each level is an alphanumeric char.
+     TLEVEL_ONLY chars    Same as above but does not run if -l not given 
      TEST message  prints (sub)test name if verbose
      TERR message  declares an error, but continues the tests
      FERR message  fatal error: also aborts the current test file
      TEND          terminates your test script (alias for: exit $TFAILS)
+                   the only function really mandatory.
      TINIT id...   For each id (composed of letters, numbers, and _ - .)
                    ensures that files __INIT__id and __END__id are sourced,
                    if they exist, before and after all tests of the dir,
@@ -60,6 +63,13 @@ Options:
    -s      standalone: do not read __INIT__ nor __END__ files
    -e file outputs the total number of errors in the file. 
 
+Exemple simple test file:
+  #!/bin/bash
+  [ -n "$TEWIBA" ] || exec tewiba -v "$0"
+  TEST screen installed
+  hash screen || TERR screen command not found
+  TEND
+
 Version '"$TEWIBA"' - Web site: http://colas.nahaboo.net/Software/Tewiba
 Copyright (c) 2013-2015 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
@@ -67,11 +77,11 @@ MIT License: http://opensource.org/licenses/MIT
 
 export debug=false
 export debuglog=/tmp/tewiba.$LOGNAME.out
-export statusfile
+export statusfile=
 export ts_standalone=false
 export TEWIBADIR="$PWD"
-export TLEVELS
-export TV
+export TLEVELS=
+export TV=
 
 err () { echo "***ERROR: $*" >&2; exit 1; }
 warn () { echo "###Warning: $*" >&2; }
@@ -97,14 +107,15 @@ export TFAILS=0
 export TDIR=
 export TIDS=' '
 TLEVEL () { [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || exit 0; }
+TLEVEL_ONLY () { [[ $* =~ [$TLEVELS] ]] || exit 0; }
 TEST () { $TV && echo "== $*"; }
 TERR () { echo "***TEST ERROR ${0##*/}*** $*" >&2; let TFAILS++; }
 FERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2;let TFAILS++;exit $TFAILS; }
 TEND () { exit $TFAILS; }
 TINIT () { # TINITS is a per-dir file containing the loaded IDs
-  local id="${1//[^-_.a-zA-Z0-9/}}"; [ -n "$id" ] || return; 
+  local id="${1//[^-_.a-zA-Z0-9/}"; [ -n "$id" ] || return; 
   fgrep -qxs $id $TINITS && return; echo $id >>$TINITS
-  [ -x __INIT__$id ]] source __INIT__$id
+  [ -x __INIT__$id ] && source __INIT__$id
 }
 TCLEANUP () { rm -rf $ttmp $ttmp.* $tmp $tmp.*; }; trap TCLEANUP 0
 
@@ -178,7 +189,7 @@ ts_test () {
   ts_init
   TFAILS=0
   if $debug; then
-    echo "$s$s$s$nl$s Test: $t$nl$s$s$s" >>$debuglog
+    echo "$s$s$nl$s Test: $t$nl$s$s" >>$debuglog
     bash -x "$t" 2>>$debuglog; status=$?
   else
     $TV && echo -n "== Test: $t:"
