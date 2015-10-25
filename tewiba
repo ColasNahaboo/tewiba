@@ -52,6 +52,7 @@ How to write tests:
 
 Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
+   -V      just prints tewiba version number
    -x      debug: execute each test in set -x mode copying also the output to
            /tmp/tewiba.$LOGNAME.out Note: does not imply -v
    -l levels  runs only tests of the levels (characters) in the string levels
@@ -85,6 +86,7 @@ while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
   -e) statusfile="$2"; shift;;
   -l) TLEVELS="$2"; shift;;
   -s) ts_standalone=true;;
+  -V) echo "$TEWIBA"; exit 0;;
   *) echo "$USAGE"; exit 1;
 esac;shift; done; if test "_$1" = "_--";then shift; fi
 
