@@ -2,4 +2,9 @@ TEST test var1
 [ "$myvar1" == ufueaaiebcai ] || TERR myvar1 undefined
 TEST test var2
 [ "$myvar2" == i879hnq43 ] && TERR myvar2 defined
+TEST tinit pre-call
+[ -n "$jhibhnrw" ] && TERR jhibhnrw defined in pre-call
+TINIT jhibhnrw
+TEST tinit post-call
+[ -n "$jhibhnrw" ] || TERR jhibhnrw undefined
 TEND
