@@ -2,18 +2,23 @@ Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 
 Features
 ========
-   * Each test or series of tests is a shell script (or any executable)
-   * No API to learn to write scripts. Just use the unix conventions:
-      * Success is the 0 exit code
+   * Each test or series of tests is a shell script, or any executable file:
+     This system is more geared to test unix programs the unix way - handling
+     them via a shell and looking at the exit code and sterr, rather than
+     testing only bash scripts. (hence the WIth BAsh)
+   * No API to learn to write scripts. Just use the normal unix conventions:
+      * Success is indicated by exiting with the 0 exit code
       * Description of problems in stderr
       * Mundane info on stdout
    * Some convenience functions are provided however: TEST, TERR, TEND, ...
-   * A self-contained script, with no dependencies
+   * Tewiba is a self-contained script, with no dependencies, easily 
+     embeddable in your source code with a non-viral license
    * Geared for various custom tests in mixed environnements, in silent mode.
      Useful for integration tests where each test can be quite complex and
      do not additional complexity from the test framework.
-     For more complete frameworrks that can be desirable in for unit tests
-     you can look at systems like https://github.com/kward/shunit2
+
+For another shell test framework, more specialised in unit tests for
+shell scripts, please see SHunit2 at https://github.com/kward/shunit2
 
 QuickStart
 ==========
