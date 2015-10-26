@@ -10,18 +10,18 @@ or on specific tests or directories of tests given as arguments.
         Filenames beginning with a . # _ or ending with "~" are ignored
         no recursion is done, subdirs will not be explicitely scanned
         except the ones ending in .subtests wthat will be also run
-     if an executable file __INIT__ is found, it will be sourced into the shell
-     so that its definitions will be available for all the tests in it
+     If an executable file __INIT__ is found, it will be sourced into the shell
+     (read) so that its definitions will be available for all the tests in it
      Same, if an __END__ file is found, it will be sourced after the tests
    * Nothing is printed if all tests OK. On failure, the stderr is printed
-   * Tests exit code must be the number of failed tests (0 = OK)
-   * A warning is printed if the test was OK but printed on stderr
+   * Tests exit code must be the number of failed tests (0 means OK)
+   * A warning is shown if the test was OK but printed on stderr
    * Tests are run in their directory
-   * Exit code is the number of failed tests. 
+   * Tewiba exit code is the total number of failed tests. 
 
 How to write tests:
-   * Tests are executable files, that exit with code 0 if OK, and the number 
-     of failures if not
+   * Tests are executable files (in any language), that exit with code 0 if OK,
+     and the number of failures if not
    * Test file names can be meaningful, e.g: "Test for empty input"
    * Filenames beginning with a "." "#" "_" or ending with "~" are ignored
      as well as files named "tewiba"
@@ -30,9 +30,9 @@ How to write tests:
    * Tests can create temporary files and dirs prefixed by "$tmp."
      they will be automatically cleaned afterwards by rm -rf $tmp $tmp.*
    * Test data can be put in subdirectories, as subdirectories are not tested
-   * Convenience functions & variables that you can use in tests:
+   * Convenience functions & variables that you can use in bash script tests:
      TLEVEL chars  only runs if a level in chars is in the ones given by -l,
-                   of -l not specified. Each level is an alphanumeric char.
+                   or -l not specified. Each level is an alphanumeric char.
      TLEVEL_ONLY chars    Same as above but does not run if -l not given 
      TEST message  prints (sub)test name if verbose
      TERR message  declares an error, but continues the tests
