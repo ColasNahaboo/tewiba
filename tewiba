@@ -75,6 +75,7 @@ Copyright (c) 2013-2015 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
 '
 
+############################################ Options
 export debug=false
 export debuglog=/tmp/tewiba.$LOGNAME.out
 export statusfile=
@@ -98,6 +99,7 @@ while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
   *) echo "$USAGE"; exit 1;
 esac;shift; done; if test "_$1" = "_--";then shift; fi
 
+############################################ Convenience funcs & vars
 export ts_failures=0
 export tmp=/tmp/tewiba.$$
 ttmp=/tmp/tewiba-main.$$
@@ -120,6 +122,8 @@ TINIT () { # TINITS is a per-dir file containing the loaded IDs
 TCLEANUP () { rm -rf $ttmp $ttmp.* $tmp $tmp.*; }; trap TCLEANUP 0
 
 export -f TLEVEL TEST TERR FERR TEND TINIT TCLEANUP
+
+############################################ Code
 
 # cautious cd
 err_cd () {
@@ -218,7 +222,8 @@ ts_test () {
 # print test outputs indented by 3 spaces for lisibility
 print_indent () { sed -e 's/^/   /' <"$1"; }
 
-####################################################################### Main
+############################################ Main
+
 # run all tests given in arguments, or in the current dir if none given
 if [ $# == 0 ]; then ts_dir .
 else
