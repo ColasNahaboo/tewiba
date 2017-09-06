@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.0
+export TEWIBA=1.1
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -71,7 +71,7 @@ Exemple simple test file:
   TEND
 
 Version '"$TEWIBA"' - Web site: http://colas.nahaboo.net/Software/Tewiba
-Copyright (c) 2013-2015 Colas Nahaboo (http://colas.nahaboo.net)
+Copyright (c) 2013-2017 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
 '
 
@@ -197,7 +197,7 @@ ts_test () {
     bash -x "$t" 2>>$debuglog; status=$?
   else
     $TV && echo -n "== Test: $t:"
-    ./"$t" >$ttmp.out 2>$ttmp.err; status=$?
+    ./"$t" >$ttmp.out 2> >(tee -a $ttmp.err >&1); status=$?
     let 'ts_failures += status'
     if [ $status = 0 ]; then
       if test -s $ttmp.err; then 
@@ -210,9 +210,10 @@ ts_test () {
       fi
     else
       if $TV; then echo "***ERRORS:$status"
-      else echo "***FAILED ($status ERRORS): $t"
+      else 
+	  echo "***FAILED ($status ERRORS): $t"
+	  if test -s $ttmp.err; then print_indent $ttmp.err; fi
       fi
-      if test -s $ttmp.err; then print_indent $ttmp.err; fi
     fi
     if $TV && test -s $ttmp.out; then print_indent $ttmp.out; fi
     rm -rf $tmp $tmp.*
