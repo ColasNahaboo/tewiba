@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.1
+export TEWIBA=1.1a
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -51,6 +51,11 @@ How to write tests:
                    [ -n "$TEWIBA" ] || exec tewiba -v "$0"
                    so that the test file can be executed standalone
      $TEWIBADIR    the original directory where tewiba was run
+   * IMPORTANT: the shell function TCLEANUP must be called at the end of the
+     tests, to clean the temporary data. tewiba traps the signal 0 for this.
+     if you redefine trap 0 in your tests, or in a script you source, you 
+     should either make your trap function also call TCLEANUP, or redo a
+     "trap TCLEANUP 0" at the end of your tests.
 
 Options:
    -v      verbose: prints each test name as it is run, as well as its stdout
