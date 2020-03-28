@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.1a
+export TEWIBA=1.1b
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -89,7 +89,7 @@ export TEWIBADIR="$PWD"
 export TLEVELS=
 export TV=
 
-err () { echo "***ERROR: $*" >&2; exit 1; }
+err () { echo "***ERROR: $*" >&2; TCLEANUP; exit 1; }
 warn () { echo "###Warning: $*" >&2; }
 V () { :;}; T () { :;}; TV=false; E () { echo "$@";}; En () { echo -n "$@";}
 Vn () { :;}
@@ -113,20 +113,26 @@ export nl=$'\n' #'
 export TFAILS=0
 export TDIR=
 export TIDS=' '
-TLEVEL () { [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || exit 0; }
-TLEVEL_ONLY () { [[ $* =~ [$TLEVELS] ]] || exit 0; }
+TLEVEL () { [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || ts_exit; }
+TLEVEL_ONLY () { [[ $* =~ [$TLEVELS] ]] || ts_exit; }
 TEST () { $TV && echo "== $*"; }
 TERR () { echo "***TEST ERROR ${0##*/}*** $*" >&2; let TFAILS++; }
-FERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2;let TFAILS++;exit $TFAILS; }
-TEND () { exit $TFAILS; }
+FERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2; let TFAILS++; ts_exit $TFAILS; }
+TEND () { ts_exit $TFAILS; }
 TINIT () { # TINITS is a per-dir file containing the loaded IDs
   local id="${1//[^-_.a-zA-Z0-9/}"; [ -n "$id" ] || return; 
   fgrep -qxs $id $TINITS && return; echo $id >>$TINITS
   [ -x __INIT__$id ] && source __INIT__$id
 }
-TCLEANUP () { rm -rf $ttmp $ttmp.* $tmp $tmp.*; }; trap TCLEANUP 0
+TCLEANUP () { # with guards to avoid disaster if a test undefined the vars
+  [ -n "$ttmp" ] && rm -rf $ttmp $ttmp.*
+  [ -n "$tmp" ] && rm -rf $tmp $tmp.*
+}
+trap TCLEANUP 0
+# low-level exit, runs TCLEANUP for safety if our trap 0 was overriden
+ts_exit() { TCLEANUP; exit "${1:-0}"; }
 
-export -f TLEVEL TEST TERR FERR TEND TINIT TCLEANUP
+export -f TLEVEL TEST TERR FERR TEND TINIT TCLEANUP ts_exit
 
 ############################################ Code
 
@@ -179,6 +185,7 @@ ts_end () {
   [ -n "$TDIR" ] && [ -x "$TDIR"/__END__ ] && { 
     local TODIR="$PWD"; cd "$TDIR"; source __END__; cd "$TODIR"
   }
+  TCLEANUP # for safety if our trap 0 was overriden
 }
 
 # will this test be run for the current level?
@@ -221,7 +228,7 @@ ts_test () {
       fi
     fi
     if $TV && test -s $ttmp.out; then print_indent $ttmp.out; fi
-    rm -rf $tmp $tmp.*
+    [ -n "$tmp" ] && rm -rf $tmp $tmp.*
   fi
 }
 
@@ -251,4 +258,4 @@ else echo "== ***** Total tests failed: $ts_failures *****"
 fi
 $debug && echo "== log of execution in $debuglog"
 [ -n "$statusfile" ] && echo "$ts_failures" >"$statusfile"
-exit $ts_failures
+ts_exit $ts_failures
