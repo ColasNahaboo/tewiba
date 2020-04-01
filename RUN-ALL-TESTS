@@ -1,9 +1,11 @@
 #!/bin/bash
-# runs all the tests in the tests/ subdirectory, using tewiba (provided)
-# Options: -v for verbose mode
-#          -? for help
+# This is a convenient script to run all the files with extension .test
+# in the tests/ subdirectory, using tewiba that can be provided in the tests/
+# dir or above, or in the PATH
+# It can be placed inside the tests/ dir or above
+# Useful to include in your software distributions
 
-# Change dir to where this script is
+# Change dir to where this script is, if was called via a complete path
 scriptpath=$(realpath $(which "$0"))
 cd "${scriptpath%/*}" || exit 1
 
@@ -21,7 +23,7 @@ $ok || { echo "***ABORTING: syntax errors in scripts" >&2; exit 1; }
 # or as argument to tewiba (terse mode), e.g: cd tests; tewiba foo.test
 # we look for the tewiba executable in tests/ or above, or on the system
 
-cd tests || exit 1
+[ -d tests ] && cd tests || exit 1
 
 if [ -x tewiba ]; then tewiba=./tewiba
 elif [ -x ../tewiba ]; then tewiba=../tewiba
