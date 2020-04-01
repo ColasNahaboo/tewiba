@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.2
+export TEWIBA=1.2.1
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -89,25 +89,24 @@ export TEWIBADIR="$PWD"
 export TLEVELS=
 export TV=
 
-err () { echo "***ERROR: $*" >&2; TCLEANUP; exit 1; }
-warn () { echo "###Warning: $*" >&2; }
-V () { :;}; T () { :;}; TV=false; E () { echo "$@";}; En () { echo -n "$@";}
-Vn () { :;}
-while test "_${1#-}" != "_$1" -a "_${1//-/}" != "_";do case "$1" in
-  -v) V () { echo "== $*" >&2;}; Vn () { echo -n "== $*" >&2;}; TV=true
-      T () { local i;En "==";for i in $*;do En " $i="`eval E '$'$i`;done;E;};;
-  -x) debug=true; rm -f $debuglog;;
-  -e) statusfile="$2"; shift;;
-  -l) TLEVELS="$2"; shift;;
-  -s) ts_standalone=true;;
-  -V) echo "$TEWIBA"; exit 0;;
-  *) echo "$USAGE"; exit 1;
-esac;shift; done; if test "_$1" = "_--";then shift; fi
+err(){ echo "***ERROR: $*" >&2; TCLEANUP; exit 1;}
+warn(){ echo "###Warning: $*" >&2;}
+V(){ :;};T(){ :;};TV=false;E(){ echo "$@";};En(){ echo -n "$@";};Vn(){ :;}
+while getopts e:l:xsvV\?h o; do case "$o" in
+  e) statusfile="$OPTARG";;
+  l) TLEVELS="$OPTARG";;
+  x) debug=true; rm -f $debuglog;;
+  s) ts_standalone=true;;
+  V) echo "$TEWIBA"; exit 0;;
+  v) V(){ echo "== $*" >&2;};Vn(){ echo -n "== $*" >&2;};TV=true
+     T(){ local i;En "==";for i in $*;do En " $i="`eval E '$'$i`;done;E;};;
+  h|?) echo "$USAGE"; exit 1;;
+esac;done;shift $((OPTIND-1))
 
 ############################################ Convenience funcs & vars
 export ts_failures=0
 export tmp=/tmp/tewiba.$$
-ttmp=/tmp/tewiba-main.$$
+export ttmp=/tmp/tewiba-main.$$
 export TINITS=$ttmp.tinits.
 export nl=$'\n' #'
 export TFAILS=0

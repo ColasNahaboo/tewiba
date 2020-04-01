@@ -1,0 +1,25 @@
+#!/bin/bash
+[ -n "$TEWIBA" ] || exec tewiba -v "$0"
+
+TEST tewiba verbose and err mix outputs
+
+./err-and-verbose-mix.data >$tmp.res 2>&1
+
+echo '== T1
+== T2
+== TE1
+***TEST ERROR err-and-verbose-mix.data*** Error1
+e1
+== T3
+== TE2
+***TEST ERROR err-and-verbose-mix.data*** Error2
+== T4' >$tmp.exp
+
+cmp -s $tmp.exp $tmp.res || TERR "Bad output!
+================================= Expected: =================================
+$(cat $tmp.exp)
+--------------------------------- Result: -----------------------------------
+$(cat $tmp.res)
+============================================================================="
+
+exit 0

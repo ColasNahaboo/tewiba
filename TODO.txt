@@ -1,4 +1,11 @@
 TODO
 ====
-* Web site
+* port to GitHub
+  - setup (create, open issues via https://gitreports.com/)
+  - Readme.md
+  - adapt my wiki page
+  - change urls in code
+  - add semantic versioning
+  
+* Include RUN-ALL-TESTS from bashoptions and document
 ? options to customise output messages

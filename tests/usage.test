@@ -1,10 +1,16 @@
 #!/bin/bash
 [ -n "$TEWIBA" ] || exec tewiba -v "$0"
 
-res=$(../tewiba -bogus)
+TEST tewiba options syntax
+
+res=$(../tewiba -bogus 2>&1)
 
 [ $? = 0 ] \
   && TERR "did not return an error"
+
+[[ $res =~ illegal\ option ]] || TERR "did not print the usage"
+
+res=$(../tewiba -?)
 
 [[ $res =~ ^tewiba\ [[]options[]]\ [[]tests[.][.][.][]] ]] \
   || TERR "did not print the usage"
