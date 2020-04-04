@@ -4,3 +4,5 @@
 
 opt=; $TV && opt=-v
 ../tewiba $opt begin-end.data1 begin-end.data2
+
+TIGNORE=\;TEND

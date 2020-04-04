@@ -1,9 +1,11 @@
 #!/bin/bash
-# This is a convenient script to run all the files with extension .test
-# in the tests/ subdirectory, using tewiba that can be provided in the tests/
-# dir or above, or in the PATH
-# It can be placed inside the tests/ dir or above
-# Useful to include in your software distributions
+# This is a convenient high-level script to run all the files with the
+# extension .test found in the tests/ subdirectory, using tewiba that can 
+# be provided in the tests/ dir or above, or in the PATH.
+# RUN-ALL-TESTS can be placed inside the tests/ dir or above.
+# Useful to include in your software distributions with tewiba for providing
+# a simple way to run all the tests in the distrib.
+# (c) 2020 Colas Nahaboo http://colas.nahaboo.net/Software/Tewiba - MIT License
 
 # Change dir to where this script is, if was called via a complete path
 scriptpath=$(realpath $(which "$0"))
@@ -17,6 +19,7 @@ for i in $(find -type f -executable); do
     fi
 done
 $ok || { echo "***ABORTING: syntax errors in scripts" >&2; exit 1; }
+unset TEWIBA			# clean slate for tewiba
 
 # otherwise, run all the *.test files in the tests/ dir in alphabetical order
 # to run a single test, go into tests and run it directly (verbose mode)
@@ -27,7 +30,8 @@ $ok || { echo "***ABORTING: syntax errors in scripts" >&2; exit 1; }
 
 if [ -x tewiba ]; then tewiba=./tewiba
 elif [ -x ../tewiba ]; then tewiba=../tewiba
-else tewiba=tewiba
+elif command -v tewiba >/dev/null; then tewiba=tewiba
+else { echo "***ABORTING: tewiba executable not found" >&2; exit 1; }
 fi
 
 for test in *.test; do

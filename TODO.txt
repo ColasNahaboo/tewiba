@@ -7,5 +7,5 @@ TODO
   - change urls in code
   - add semantic versioning
   
-* Include RUN-ALL-TESTS from bashoptions and document
+* RUN-ALL-TESTS documentation
 ? options to customise output messages

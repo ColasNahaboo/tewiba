@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.2.1
+export TEWIBA=1.3.1
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -37,8 +37,9 @@ How to write tests:
      TEST message  prints (sub)test name if verbose
      TERR message  declares an error, but continues the tests
      FERR message  fatal error: also aborts the current test file
-     TEND          terminates your test script (alias for: exit $TFAILS)
-                   the only function really mandatory.
+     TEND          MANDATORY: terminates your test script.
+                   (an alias for: exit $TFAILS)
+                   This is the only function really mandatory in a test file.
      TINIT id...   For each id (composed of letters, numbers, and _ - .)
                    ensures that files __INIT__id and __END__id are sourced,
                    if they exist, before and after all tests of the dir,
@@ -67,6 +68,8 @@ Options:
            thus ranges are possible: -l 0-3 matches a TLEVEL 17a
    -s      standalone: do not read __INIT__ nor __END__ files
    -e file outputs the total number of errors in the file. 
+   -f      forces running tests files even without a TEND directive in them.
+           Or add this line in the test file: #TNOEND
 
 Exemple simple test file:
   #!/bin/bash
@@ -88,6 +91,7 @@ export ts_standalone=false
 export TEWIBADIR="$PWD"
 export TLEVELS=
 export TV=
+export must_tend=true
 
 err(){ echo "***ERROR: $*" >&2; TCLEANUP; exit 1;}
 warn(){ echo "###Warning: $*" >&2;}
@@ -97,10 +101,11 @@ while getopts e:l:xsvV\?h o; do case "$o" in
   l) TLEVELS="$OPTARG";;
   x) debug=true; rm -f $debuglog;;
   s) ts_standalone=true;;
+  f) must_tend=false;;
   V) echo "$TEWIBA"; exit 0;;
   v) V(){ echo "== $*" >&2;};Vn(){ echo -n "== $*" >&2;};TV=true
      T(){ local i;En "==";for i in $*;do En " $i="`eval E '$'$i`;done;E;};;
-  h|?) echo "$USAGE"; exit 1;;
+  h|'?') echo "$USAGE"; exit 1;;
 esac;done;shift $((OPTIND-1))
 
 ############################################ Convenience funcs & vars
@@ -116,7 +121,9 @@ TLEVEL () { [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || ts_exit; }
 TLEVEL_ONLY () { [[ $* =~ [$TLEVELS] ]] || ts_exit; }
 TEST () { $TV && echo "== $*"; }
 TERR () { echo "***TEST ERROR ${0##*/}*** $*" >&2; let TFAILS++; }
-FERR () { echo "***FATAL ERROR ${0##*/}*** $*" >&2; let TFAILS++; ts_exit $TFAILS; }
+FERR () {
+    echo "***FATAL ERROR ${0##*/}*** $*" >&2; let TFAILS++; ts_exit $TFAILS
+}
 TEND () { ts_exit $TFAILS; }
 TINIT () { # TINITS is a per-dir file containing the loaded IDs
   local id="${1//[^-_.a-zA-Z0-9/}"; [ -n "$id" ] || return; 
@@ -129,9 +136,9 @@ TCLEANUP () { # with guards to avoid disaster if a test undefined the vars
 }
 trap TCLEANUP 0
 # low-level exit, runs TCLEANUP for safety if our trap 0 was overriden
-ts_exit() { TCLEANUP; exit "${1:-0}"; }
+ts_exit() { : TCLEANUP; exit "${1:-0}"; }
 
-export -f TLEVEL TEST TERR FERR TEND TINIT TCLEANUP ts_exit
+export -f TLEVEL TEST TERR FERR TEND TINIT ts_exit TCLEANUP
 
 ############################################ Code
 
@@ -184,7 +191,6 @@ ts_end () {
   [ -n "$TDIR" ] && [ -x "$TDIR"/__END__ ] && { 
     local TODIR="$PWD"; cd "$TDIR"; source __END__; cd "$TODIR"
   }
-  TCLEANUP # for safety if our trap 0 was overriden
 }
 
 # will this test be run for the current level?
@@ -201,13 +207,18 @@ ts_level () {
 ts_test () {
   local t="$1" s="#################################"
   ts_level "$t" || return
+  ! egrep -q '^([^#]*;|[[:space:]]*)TEND([;[:space:]]|$)' "$t" && $must_tend &&
+  ! grep -q '^ *#TNOEND' "$t" && [ -s "$t" ] && \
+      err "Test file \"$t\" does not have a TEND statement. Use -f to force."
   ts_init
   TFAILS=0
   if $debug; then
     echo "$s$s$nl$s Test: $t$nl$s$s" >>$debuglog
-    bash -x "$t" 2>>$debuglog; status=$?
+    # RUN + Trace
+    bash -x "$t" >>$debuglog 2>&1; status=$?
   else
     $TV && echo -n "== Test: $t:"
+    # RUN
     ./"$t" >$ttmp.out 2> >(tee -a $ttmp.err >&1); status=$?
     let 'ts_failures += status'
     if [ $status = 0 ]; then
@@ -245,7 +256,8 @@ else
       if [[ $t =~ / ]]; then ts_test_path "$t"
       else ts_test "$t"
       fi
-    else err "$t is not a test!"
+    elif [ -e "$t" ]; then err "$t not found!"
+    else err "$t is not executable!"
     fi
   done
 fi

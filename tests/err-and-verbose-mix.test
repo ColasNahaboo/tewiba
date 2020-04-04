@@ -3,17 +3,26 @@
 
 TEST tewiba verbose and err mix outputs
 
-./err-and-verbose-mix.data >$tmp.res 2>&1
+if [ -x tewiba ]; then tewiba=./tewiba
+elif [ -x ../tewiba ]; then tewiba=../tewiba
+elif command -v tewiba >/dev/null; then tewiba=tewiba
+else { echo "***ABORTING: tewiba executable not found" >&2; exit 1; }
+fi
+export tewiba
 
-echo '== T1
-== T2
-== TE1
-***TEST ERROR err-and-verbose-mix.data*** Error1
-e1
-== T3
-== TE2
-***TEST ERROR err-and-verbose-mix.data*** Error2
-== T4' >$tmp.exp
+( unset TEWIBA; $tewiba -v err-and-verbose-mix.data ) >$tmp.res 2>&1
+
+echo '== Test: err-and-verbose-mix.data:***ERRORS:2
+   == T1
+   == T2
+   == TE1
+   ***TEST ERROR err-and-verbose-mix.data*** Error1
+   e1
+   == T3
+   == TE2
+   ***TEST ERROR err-and-verbose-mix.data*** Error2
+   == T4
+== ***** Total tests failed: 2 *****' >$tmp.exp
 
 cmp -s $tmp.exp $tmp.res || TERR "Bad output!
 ================================= Expected: =================================
@@ -22,4 +31,4 @@ $(cat $tmp.exp)
 $(cat $tmp.res)
 ============================================================================="
 
-exit 0
+TEND
