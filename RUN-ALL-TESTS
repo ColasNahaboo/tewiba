@@ -35,5 +35,5 @@ else { echo "***ABORTING: tewiba executable not found" >&2; exit 1; }
 fi
 
 for test in *.test; do
-    [ "$test" != "*.test" ] && $tewiba $* "$test"
+    [ "$test" != "*.test" ] && $tewiba "$@" "$test"
 done
