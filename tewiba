@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.4.0
+export TEWIBA=1.4.2
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -35,7 +35,7 @@ How to write tests:
                    or -l not specified. Each level is an alphanumeric char.
      TLEVEL_ONLY chars    Same as above but does not run if -l not given 
      TEST message  prints sub-test (the file name is the test name) name if 
-                   verbose, or before the first error of this subtest
+                   verbose, and as label in TERR messages
      TERR message  declares an error, but continues the tests
      FERR message  fatal error: also aborts the current test file
      TEND          MANDATORY: terminates your test script.
@@ -45,6 +45,13 @@ How to write tests:
                    ensures that files __INIT__id and __END__id are sourced,
                    if they exist, before and after all tests of the dir,
                    after and before __INIT__ and __END__ respectively
+     DOTEST [-o|-e|-s] label expected-output-string parameters
+                   runs the command in $TOTEST - that you must define - with
+                   the parameters as its command line options, compare its
+                   output to the expected-output-string (or its stderr with
+                   -e, or its exit code status with -s. The default is -o for
+                   stdout), and in case of difference triggers a TERR 
+                   displaying the label, the result and the expected string.
      $TV           is true in verbose mode, false otherwise
      $tmp          temporary data prefix (see above)
      $nl           is the newline character
@@ -119,19 +126,15 @@ export nl=$'\n' #'
 export TFAILS=0
 export TDIR=
 export TIDS=' '
-export _TEST_CURRENT=
+export _TEST_CURRENT="${0##*/}" # last TEST argument, defaults to file name
+export TOTEST
 TLEVEL () { [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || ts_exit; }
 TLEVEL_ONLY () { [[ $* =~ [$TLEVELS] ]] || ts_exit; }
 TEST () { _TEST_CURRENT="$*"; $TV && echo "== $*" >&2; }
-TERR () {
-    $TV && [ -n "$_TEST_CURRENT" ] && 
-    { echo "== $_TEST_CURRENT" >&2;_TEST_CURRENT=;}
-    echo "***TEST ERROR ${0##*/}*** $*" >&2; let TFAILS++
-}
+TERR () { echo "***TEST ERROR ${_TEST_CURRENT}*** $*" >&2; let TFAILS++;}
 FERR () {
-    $TV && [ -n "$_TEST_CURRENT" ] &&
-    { echo "== $_TEST_CURRENT" >&2;_TEST_CURRENT=;}
-    echo "***FATAL ERROR ${0##*/}*** $*" >&2; let TFAILS++; ts_exit $TFAILS
+    echo "***FATAL ERROR ${_TEST_CURRENT}*** $*" >&2; let TFAILS++
+    ts_exit $TFAILS
 }
 TEND () { ts_exit $TFAILS; }
 TINIT () { # TINITS is a per-dir file containing the loaded IDs
@@ -147,7 +150,27 @@ trap TCLEANUP 0
 # low-level exit, runs TCLEANUP for safety if our trap 0 was overriden
 ts_exit() { : TCLEANUP; exit "${1:-0}"; }
 
-export -f TLEVEL TEST TERR FERR TEND TINIT ts_exit TCLEANUP
+# Usage: DOTEST [option] label expected-output-string parameters-to-$TOTEST
+# option: -e tests only the stderr of TOTEST, -s its status (exit code: $?)
+# TOTEST must be defined to the command to test
+DOTEST(){
+    [ -n "TOTEST" ] || \
+	err 'DOTEST requires $TOTEST to contain the command to test'
+    local _what=o
+    case "$1" in -s)_what=s;shift;; -e)_what=e;shift;; -o)_what=o;shift;; esac
+    local _name="$1"; shift
+    local _expect="$1"; shift
+    local _result
+    case $_what in
+	o) _result=$($TOTEST "$@");;
+	e) _result=$($TOTEST "$@" 2>&1 >/dev/null);;
+	s) $TOTEST "$@" >/dev/null 2>&1; _result=$?;;
+    esac
+    [ "$_result" == "$_expect" ] || 
+    TERR "$_name:${nl}Expect: \"$_expect\"${nl}Got>>>: \"$_result\""
+}
+
+export -f TLEVEL TEST TERR FERR TEND TINIT ts_exit TCLEANUP DOTEST
 
 ############################################ Code
 
