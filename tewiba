@@ -55,10 +55,11 @@ How to write tests:
      $TV           is true in verbose mode, false otherwise
      $tmp          temporary data prefix (see above)
      $nl           is the newline character
-     $TEWIBA       the version number of tewiba. 
+     $TEWIBA       the version number of tewiba. Uses semantic versioning.
                    Trick: put after #!/bin/bash the line:
                    [ -n "$TEWIBA" ] || exec tewiba -v "$0"
-                   so that the test file can be executed standalone
+                   so that the test file can be executed standalone as it will
+                   auto-run tewiba on itself
      $TEWIBADIR    the original directory where tewiba was run
    * All tewiba functions above print on stderr.
    * IMPORTANT: the shell function TCLEANUP must be called at the end of the
