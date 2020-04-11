@@ -119,16 +119,18 @@ while getopts e:l:xsvV\?h o; do case "$o" in
 esac;done;shift $((OPTIND-1))
 
 ############################################ Convenience funcs & vars
-export ts_failures=0
+# These can be used in your tests script files
 export tmp=/tmp/tewiba.$$
-export ttmp=/tmp/tewiba-main.$$
-export TINITS=$ttmp.tinits.
 export nl=$'\n' #'
 export TFAILS=0
-export TDIR=
-export TIDS=' '
-export _TEST_CURRENT
 export TOTEST
+# Except the internal ones below, that start with an underscore "_"
+export _ts_failures=0
+export _twtmp=/tmp/tewiba-main.$$
+export _TINITS=$_twtmp.tinits.
+export _TEST_CURRENT
+export _TDIR=
+
 TLEVEL () { [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || ts_exit; }
 TLEVEL_ONLY () { [[ $* =~ [$TLEVELS] ]] || ts_exit; }
 TEST () { _TEST_CURRENT="$*"; $TV && echo "== $*" >&2; }
@@ -138,13 +140,13 @@ FERR () {
     ts_exit $TFAILS
 }
 TEND () { ts_exit $TFAILS; }
-TINIT () { # TINITS is a per-dir file containing the loaded IDs
+TINIT () { # _TINITS is a per-dir file containing the loaded IDs
   local id="${1//[^-_.a-zA-Z0-9/}"; [ -n "$id" ] || return; 
-  fgrep -qxs $id $TINITS && return; echo $id >>$TINITS
+  fgrep -qxs $id $_TINITS && return; echo $id >>$_TINITS
   [ -x __INIT__$id ] && source __INIT__$id
 }
 TCLEANUP () { # with guards to avoid disaster if a test undefined the vars
-  [ -n "$ttmp" ] && rm -rf $ttmp $ttmp.*
+  [ -n "$_twtmp" ] && rm -rf $_twtmp $_twtmp.*
   [ -n "$tmp" ] && rm -rf $tmp $tmp.*
 }
 trap TCLEANUP 0
@@ -185,7 +187,7 @@ err_cd () {
 ts_dir () {
   local i oldpwd="$PWD" id
   err_cd "$1"
-  export TINITS=${TINITS}x
+  export _TINITS=${_TINITS}x
   for i in *; do
     if [ -d "$i" ]; then
       [[ $i =~ [.]subtests$ ]] && ts_dir "$i"
@@ -195,8 +197,8 @@ ts_dir () {
       ts_test "$i"
     fi
   done
-  if [ -s $TINITS ]; then 
-    for id in $(cat $TINITS); do [ -x __END__$id ] && source __END__$id; done
+  if [ -s $_TINITS ]; then 
+    for id in $(cat $_TINITS); do [ -x __END__$id ] && source __END__$id; done
   fi
   cd "$oldpwd"
 }
@@ -213,16 +215,16 @@ ts_test_path () {
 ts_init () {
   $ts_standalone && return
   local tdir=$(/bin/pwd)
-  if [ "$tdir" != "$TDIR" ]; then
+  if [ "$tdir" != "$_TDIR" ]; then
     ts_end
     [ -x __INIT__ ] && source __INIT__
-    TDIR="$tdir"
+    _TDIR="$tdir"
   fi
 }
 # on leaving, execute __END__
 ts_end () {
-  [ -n "$TDIR" ] && [ -x "$TDIR"/__END__ ] && { 
-    local TODIR="$PWD"; cd "$TDIR"; source __END__; cd "$TODIR"
+  [ -n "$_TDIR" ] && [ -x "$_TDIR"/__END__ ] && { 
+    local TODIR="$PWD"; cd "$_TDIR"; source __END__; cd "$TODIR"
   }
 }
 
@@ -253,14 +255,14 @@ ts_test () {
   else
     $TV && echo -n "== Test file: $t:"
     # RUN
-    ./"$t" >$ttmp.out 2> >(tee -a $ttmp.err >&1); status=$?
-    let 'ts_failures += status'
+    ./"$t" >$_twtmp.out 2> >(tee -a $_twtmp.err >&1); status=$?
+    let '_ts_failures += status'
     if [ $status = 0 ]; then
-      if test -s $ttmp.err; then 
+      if test -s $_twtmp.err; then 
 	if $TV; then echo "OK, but printed on stderr:"
 	else echo "###Warning: test $t OK, but printed on stderr:"
 	fi
-	print_indent $ttmp.err
+	print_indent $_twtmp.err
       else
 	$TV && echo " OK"
       fi
@@ -268,10 +270,10 @@ ts_test () {
       if $TV; then echo "***ERRORS:$status"
       else 
 	  echo "***FAILED ($status ERRORS): $t"
-	  if test -s $ttmp.err; then print_indent $ttmp.err; fi
+	  if test -s $_twtmp.err; then print_indent $_twtmp.err; fi
       fi
     fi
-    if $TV && test -s $ttmp.out; then print_indent $ttmp.out; fi
+    if $TV && test -s $_twtmp.out; then print_indent $_twtmp.out; fi
     [ -n "$tmp" ] && rm -rf $tmp $tmp.*
   fi
 }
@@ -298,9 +300,9 @@ fi
 ts_end
 
 # print global tests results, and exit
-if [ $ts_failures = 0 ]; then V "All tests OK =="
-else echo "== ***** Total tests failed: $ts_failures *****"
+if [ $_ts_failures = 0 ]; then V "All tests OK =="
+else echo "== ***** Total tests failed: $_ts_failures *****"
 fi
 $debug && echo "== log of execution in $debuglog"
-[ -n "$statusfile" ] && echo "$ts_failures" >"$statusfile"
-ts_exit $ts_failures
+[ -n "$statusfile" ] && echo "$_ts_failures" >"$statusfile"
+ts_exit $_ts_failures
