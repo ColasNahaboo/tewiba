@@ -8,9 +8,9 @@ res=$(../tewiba -bogus 2>&1)
 [ $? = 0 ] \
   && TERR "did not return an error"
 
-[[ $res =~ illegal\ option ]] || TERR "did not print the usage"
+[[ $res =~ 'Bad option' ]] || TERR "did not detect a bad option"
 
-res=$(../tewiba -?)
+res=$(../tewiba -h)
 
 [[ $res =~ ^tewiba\ [[]options[]]\ [[]tests[.][.][.][]] ]] \
   || TERR "did not print the usage"

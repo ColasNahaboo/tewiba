@@ -80,6 +80,7 @@ Options:
    -e file outputs the total number of errors in the file. 
    -f      forces running tests files even without a TEND directive in them.
            Or add this line in the test file: #TNOEND
+   -h      This help.
 
 Exemple simple test file:
   #!/bin/bash
@@ -100,23 +101,30 @@ export statusfile=
 export ts_standalone=false
 export TEWIBADIR="$PWD"
 export TLEVELS=
-export TV=
+export TV
 export must_tend=true
 
-err(){ echo "***ERROR: $*" >&2; TCLEANUP; exit 1;}
-warn(){ echo "###Warning: $*" >&2;}
-V(){ :;};T(){ :;};TV=false;E(){ echo "$@";};En(){ echo -n "$@";};Vn(){ :;}
-while getopts e:l:xsvV\?h o; do case "$o" in
+OPTIONS='e:l:xsvV'
+#----https://github.com/ColasNahaboo/bashoptions--------------getopts----v0.2.1
+V(){ :;};T(){ :;};v=false;E(){ echo "$@";};En(){ E -n "$@";};VV(){ :;};nl=$'\n'
+err(){ E "***ERROR: $*" >&2; exit 1;};warn(){ E "###Warning: $*" >&2;}
+while getopts ":${OPTIONS}hv?" _o; do case "$_o" in
+#----single letter options start-----------------------------------------
   e) statusfile="$OPTARG";;
   l) TLEVELS="$OPTARG";;
   x) debug=true; rm -f $debuglog;;
   s) ts_standalone=true;;
   f) must_tend=false;;
   V) echo "$TEWIBA"; exit 0;;
-  v) V(){ echo "== $*" >&2;};Vn(){ echo -n "== $*" >&2;};TV=true
-     T(){ local i;En "==";for i in $*;do En " $i="`eval E '$'$i`;done;E;};;
-  h|'?') echo "$USAGE"; exit 1;;
-esac;done;shift $((OPTIND-1))
+#----single letter options end-------------------------------------------
+v)T(){ local i;{ En "==";for i in "$@";do [[ $i =~ [^_[:alnum:]] ]]&&En " $i"||
+En " $i=${!i}";done;E;}>&2;};V(){ E "== $*" >&2;};v=true;;h) E "$USAGE"
+exit;;\?)err "Bad option: -$OPTARG, -h for help.";;':')err "Missing arg: \
+-$OPTARG";;*)err "Bad option: -$_o, -h for help.";esac;done;shift $((OPTIND-1))
+#----bashoptions-getopts end---------------------------------------------
+TV=$v
+err(){ echo "***ERROR: $*" >&2; TCLEANUP; exit 1;}
+
 
 ############################################ Convenience funcs & vars
 # These can be used in your tests script files
@@ -203,7 +211,7 @@ ts_dir () {
   cd "$oldpwd"
 }
 
-# go execute a test in its directory
+# go execute a test in its directory env
 ts_test_path () {
     local path=$(readlink -m "$1") oldpwd="$PWD"
     err_cd "${path%/*}"
@@ -299,7 +307,7 @@ else
 fi
 ts_end
 
-# print global tests results, and exit
+############################################ Epilogue: print results, and exit
 if [ $_ts_failures = 0 ]; then V "All tests OK =="
 else echo "== ***** Total tests failed: $_ts_failures *****"
 fi
