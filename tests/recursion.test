@@ -8,15 +8,21 @@
 [ -n "$TEWIBA" ] || exec tewiba -v "$0"
 
 TEST recursion in dirs
-res=$(../tewiba -v recursion.data 2>$tmp.err)
+out=$(../tewiba -v recursion.data 2>$tmp.err)
+err=$(cat $tmp.err)
+
 tok='== Test file: too2.subtests: OK
 == Test file: tood.subtests-tests: OK
 == Test file: toox: OK'
 
-[ "$res" = "$tok" ] || TERR "bad recursion, was:
-$res
-#With stderr:
-$(cat $tmp.err)
+[ "$out" == '' ] || TERR "bad recursion stdout, was:
+$out
+#Instead of:"
+TEND
+
+
+[ "$err" == "$tok" ] || TERR "bad recursion stderr, was:
+$err
 #Instead of:
 $tok"
 TEND

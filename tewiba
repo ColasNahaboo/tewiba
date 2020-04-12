@@ -1,16 +1,16 @@
 #!/bin/bash
-export TEWIBA=1.4.3
+export TEWIBA=1.5.0-beta.1
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
 or on specific tests or directories of tests given as arguments.
    * Tests are given as arguments, and executed in order, they can be either
       * an executable file
-      * a directory, all executable files in it will be run as tests
-        Filenames beginning with a . # _ or ending with "~" are ignored
+      * a directory, all non-empty executable files in it will be run as tests
+        Files with names beginning with a . # _ or ending with "~" are ignored
         no recursion is done, subdirs will not be explicitely scanned
         except the ones ending in .subtests wthat will be also run
-     If an executable file __INIT__ is found, it will be sourced into the shell
+     If a file __INIT__ is found, it will be sourced into the shell
      (read) so that its definitions will be available for all the tests in it
      Same, if an __END__ file is found, it will be sourced after the tests
    * Nothing is printed if all tests OK. On failure, the stderr is printed
@@ -43,7 +43,7 @@ How to write tests:
                    This is the only function really mandatory in a test file.
      TINIT id...   For each id (composed of letters, numbers, and _ - .)
                    ensures that files __INIT__id and __END__id are sourced,
-                   if they exist, before and after all tests of the dir,
+                   if they exist, before and after all tests of the file,
                    after and before __INIT__ and __END__ respectively
      DOTEST [-o|-e|-s] label expected-output-string parameters
                    runs the command in $TOTEST - that you must define - with
@@ -99,7 +99,7 @@ export debug=false
 export debuglog=/tmp/tewiba.$LOGNAME.out
 export statusfile=
 export ts_standalone=false
-export TEWIBADIR="$PWD"
+export TEWIBADIR=$(realpath "$PWD")
 export TLEVELS=
 export TV
 export must_tend=true
@@ -135,31 +135,38 @@ export TOTEST
 # Except the internal ones below, that start with an underscore "_"
 export _ts_failures=0
 export _twtmp=/tmp/tewiba-main.$$
-export _TINITS=$_twtmp.tinits.
+export _TINITS=			# the __END__$i to trigger
 export _TEST_CURRENT
-export _TDIR=
+export _cd=			# dir we are in, with its __INIT__ executed
 
-TLEVEL () { [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || ts_exit; }
-TLEVEL_ONLY () { [[ $* =~ [$TLEVELS] ]] || ts_exit; }
-TEST () { _TEST_CURRENT="$*"; $TV && echo "== $*" >&2; }
-TERR () { echo "***TEST ERROR ${_TEST_CURRENT}*** $*" >&2; let TFAILS++;}
-FERR () {
+TLEVEL(){ [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || ts_exit; }
+TLEVEL_ONLY(){ [[ $* =~ [$TLEVELS] ]] || ts_exit; }
+TEST(){ _TEST_CURRENT="$*"; $TV && echo "== $*" >&2; }
+TERR(){ echo "***TEST ERROR ${_TEST_CURRENT}*** $*" >&2; let TFAILS++;}
+FERR(){
     echo "***FATAL ERROR ${_TEST_CURRENT}*** $*" >&2; let TFAILS++
     ts_exit $TFAILS
 }
-TEND () { ts_exit $TFAILS; }
-TINIT () { # _TINITS is a per-dir file containing the loaded IDs
-    local id="${1//[^-_.a-zA-Z0-9/}"; [ -n "$id" ] || return; 
-    fgrep -qxs $id $_TINITS && return; echo $id >>$_TINITS
-    [ -x __INIT__$id ] && source __INIT__$id
+TEND(){ ts_exit $TFAILS; }
+TINIT(){
+    $ts_standalone && return
+    local id; _TINITS=
+    for id in "$@"; do 
+	id="${id//[^-_.a-zA-Z0-9/}"
+	[-z "$id" ] && continue
+	[ -f __INIT__$id ] && . __INIT__$id
+	_TINITS="$id $_TINITS"	# reverse order from inits
+    done
+    _tinits_push $_TINITS
 }
-TCLEANUP () { # with guards to avoid disaster if a test undefined the vars
+TCLEANUP(){ # with guards to avoid disaster if something undefined the vars
+    ts_chdir
     [ -n "$_twtmp" ] && rm -rf $_twtmp $_twtmp.*
     [ -n "$tmp" ] && rm -rf $tmp $tmp.*
 }
 trap TCLEANUP 0
 # low-level exit, runs TCLEANUP for safety if our trap 0 was overriden
-ts_exit() { : TCLEANUP; exit "${1:-0}"; }
+ts_exit(){ : TCLEANUP; exit "${1:-0}"; }
 
 # Usage: DOTEST [option] label expected-output-string parameters-to-$TOTEST
 # option: -e tests only the stderr of TOTEST, -s its status (exit code: $?)
@@ -181,67 +188,108 @@ DOTEST(){
     TERR "$_name:${nl}Expect: \"$_expect\"${nl}Got>>>: \"$_result\""
 }
 
-export -f TLEVEL TEST TERR FERR TEND TINIT ts_exit TCLEANUP DOTEST
+# push back the TINITS from the child test process to the underlying tewiba
+_tinits_push(){ echo "$_cd $*" >>$_twtmp.endids;}
+
+export -f TLEVEL TEST TERR FERR TEND TINIT ts_exit TCLEANUP DOTEST _tinits_push
 
 ############################################ Code
 
-# cautious cd
-err_cd () {
-    cd "$1" 2>/dev/null || \
-	err "tewiba failed to enter test dir: "$(readlink -m "$1")
+# quote the arg string for regexp use, if many, prints them one per line
+# $1=string, prints quoted form for inclusion in regexpes in stdout
+# quotes also / for safe use in sed /.../
+regexp_quote () {
+  local re="$1" len=${#1} i=0 c
+  while let 'i<len'; do c="${re:i:1}"; case "$c" in
+      \?|\*|\||+|.|\$|\\|\[|\]|\(|\)|/) echo -n "[$c]";;
+      '^') echo -n "\\^";; *) echo -n "$c";;
+    esac; let i++; done
 }
 
-# executes all the tests that are direct sons of a dir
-ts_dir () {
-    local i oldpwd="$PWD" id
-    err_cd "$1"
-    export _TINITS=${_TINITS}x
+# _tinit_pull do not need to be exported into the test file scope.
+tinits_pull(){
+    local cd=$(regexp_quote "$1")
+    local tinits=$(grep -oPs "^$cd \K.*" $_twtmp.endids)
+    local tofix=
+    [ -e $_twtmp.endids ] && tofix="$_twtmp.endids"
+    [ -e $_twtmp.ends ] && tofix="$tofix $_twtmp.ends"
+    [ -n "$tofix" ] && sed -r -i -e "/^$cd /d" $tofix
+    echo $tinits
+}
+
+# low level cd: go into a dir, execute its __INIT__. Do not call directly
+tscd(){
+    local d="$1"
+    [ -z "$d" ] && return
+    [ "$d" == "$_cd" ] && return # nothing to do
+    _cd=$(realpath "$d")
+    cd "$_cd" 2>/dev/null || {
+	local expansed
+	[ "$_cd" != "$d" ] && expansed=" ($_cd)"
+	err "Fatal: tewiba failed to enter test dir: $d$expansed"
+    }	
+    $ts_standalone && return
+    [ -f __INIT__ ] && . __INIT__
+    [ -f __END__ ] && echo "$_cd " >>$_twtmp.ends # remember to do it on exit
+}
+
+# change dir, manages exiting current dir (_cd) if non empty, and entering 
+# new dir in argument in $1 if non empty. High level function.
+
+ts_chdir(){
+    local d="$1" id i
+    [ "$d" == "$_cd" ] && return
+    if $ts_standalone; then tscd "$d"; return; fi
+
+    if [ -z "$d" ] || is_subdir_of "$d" "$_cd"; then # subdir, no ends
+	tscd "$d"
+    elif is_subdir_of "$_cd" "$d"; then # going back, ends no init
+	while read i; do
+	    [ "$i" == "$d" ] && break
+	    is_subdir_of "$i" "$d" || break
+	    cd "$i"
+	    _TINITS=$(tinits_pull "$i")
+	    for id in $_TINITS; do [ -f __END__$id ] && . __END__$id;done
+	    [ -f __END__ ] && . __END__
+	done < <(tac $_twtmp.ends 2>/dev/null)
+	cd "$d"
+	_cd="$d"
+    else			# jump elsewhere, ends and inits
+	while read i; do
+	    cd "$i"
+	    _TINITS=$(tinits_pull "$i")
+	    for id in $_TINITS; do [ -f __END__$id ] && . __END__$id;done
+	    [ -f __END__ ] && . __END__
+	done < <(cat $_twtmp.ends 2>/dev/null)
+	rm -f $_twtmp.ends
+	tscd "$d"
+    fi
+}
+
+# executes all the tests in current (_cd) dir
+ts_dir(){
+    local i r ocd="$_cd"
     for i in *; do
+	r=$(realpath "$i")
 	if [ -d "$i" ]; then
-	    [[ $i =~ [.]subtests$ ]] && ts_dir "$i"
-	else
-	    [[ $i =~ (^[\#._]|~$) ]] || [ ! -x "$i" ] || [ "$i" = tewiba ] && \
-		continue
-	    ts_test "$i"
+	    if [[ $i =~ [.]subtests$ ]]; then # only go in *.subtests dirs
+		ts_chdir "$r"
+		ts_dir
+	    fi
+	else # ignore #-prefixed, ~-suffixed, tewiba and non-executables
+	    if [[ $i =~ (^[\#._]|~$) ]] || [ ! -x "$i" ] || [ "$i" = tewiba ]||
+		[ ! -s "$i" ]; then continue
+	    else
+		ts_test "$r"
+	    fi
 	fi
     done
-    if [ -s $_TINITS ]; then 
-	for id in $(cat $_TINITS); do
-	    [ -x __END__$id ] && source __END__$id
-	done
-    fi
-    cd "$oldpwd"
-}
-
-# go execute a test in its directory env
-ts_test_path () {
-    local path=$(readlink -m "$1") oldpwd="$PWD"
-    err_cd "${path%/*}"
-    ts_test "${path##*/}"
-    cd "$oldpwd"
-}
-
-# on entering a dir, execute __INIT__
-ts_init () {
-    $ts_standalone && return
-    local tdir=$(/bin/pwd)
-    if [ "$tdir" != "$_TDIR" ]; then
-	ts_end
-	[ -x __INIT__ ] && source __INIT__
-	_TDIR="$tdir"
-    fi
-}
-# on leaving, execute __END__
-ts_end () {
-    if [ -n "$_TDIR" ] && [ -x "$_TDIR"/__END__ ]; then
-	local TODIR="$PWD"; cd "$_TDIR"; source __END__; cd "$TODIR"
-    fi
 }
 
 # will this test be run for the current level?
 # $1=test file, returns 0 if OK
 # we pre-detect it before running TLEVEL in file, avoiding extra "test ok" mess
-ts_level () {
+ts_level(){
     local tlevel=$(grep -oP '^[[:space:]]*TLEVEL +\K.*' "$1")
     [ -z "$tlevel" ] && return 0 # no TLEVEL line => OK
     [ -z "$TLEVELS" ] || [[ $tlevel =~ [$TLEVELS] ]] || return 1
@@ -249,29 +297,33 @@ ts_level () {
 }
 
 # execute a single test in the current directory
-ts_test () {
-    local t="$1" s="#################################"
+ts_test(){
+    local t="$1" s="#################################" oTV="$TV"
+    local f="${t##*/}"
     ts_level "$t" || return
     ! egrep -q '^([^#]*;|[[:space:]]*)TEND([;[:space:]]|$)' "$t" && \
 	$must_tend && \
 	! grep -q '^ *#TNOEND' "$t" && [ -s "$t" ] && \
 	err "Test file \"$t\" does not have a TEND statement. Use -f to force."
-    ts_init
-    _TEST_CURRENT="${t##*/}" # default TEST name: the filename
+    _TEST_CURRENT="$f" # default TEST name: the filename
     TFAILS=0
     if $debug; then
 	echo "$s$s$nl$s Test file: $t$nl$s$s" >>$debuglog
-    # RUN + Trace
+        # RUN TEST in Trace Mode
+	TV=false
 	bash -x "$t" >>$debuglog 2>&1; status=$?
+	TV=$oTV
     else
-	$TV && echo -n "== Test file: $t:"
-    # RUN
-	./"$t" >$_twtmp.out 2> >(tee -a $_twtmp.err >&1); status=$?
+	$TV && echo -n "== Test file: $f:"
+        # RUN TEST
+	TV=false
+	"$t" >$_twtmp.out 2> >(tee -a $_twtmp.err >&1); status=$?
+	TV=$oTV
 	let '_ts_failures += status'
-	if [ $status = 0 ]; then
+	if [ $status == 0 ]; then
 	    if test -s $_twtmp.err; then 
 		if $TV; then echo "OK, but printed on stderr:"
-		else echo "###Warning: test $t OK, but printed on stderr:"
+		else echo "###Warning: test $f OK, but printed on stderr:"
 		fi
 		print_indent $_twtmp.err
 	    else
@@ -280,7 +332,7 @@ ts_test () {
 	else
 	    if $TV; then echo "***ERRORS:$status"
 	    else 
-		echo "***FAILED ($status ERRORS): $t"
+		echo "***FAILED ($status ERRORS): $f"
 	  if test -s $_twtmp.err; then print_indent $_twtmp.err; fi
 	    fi
 	fi
@@ -290,25 +342,37 @@ ts_test () {
 }
 
 # print test outputs indented by 3 spaces for lisibility
-print_indent () { sed -e 's/^/   /' <"$1"; }
+print_indent(){ sed -e 's/^/   /' <"$1"; }
+
+# is $1 a subdir of $2? aka $2 is a strict non-empty substring of $1?
+is_subdir_of(){ [ -n "$2" ]&&[ "${1:0:${#2}}" == "$2" ]&&[ "$1" != "$2" ];}
 
 ############################################ Main
 
 # run all tests given in arguments, or in the current dir if none given
-if [ $# == 0 ]; then ts_dir .
+
+if [ $# == 0 ]; then
+	ts_chdir .
+	ts_dir .
 else
     for t in "$@"; do
-	if [  -d "$t" ]; then ts_dir "$t"
-	elif [ -x "$t" ]; then 
-	    if [[ $t =~ / ]]; then ts_test_path "$t"
-	    else ts_test "$t"
-	    fi
-	elif [ -e "$t" ]; then err "$t not found!"
-	else err "$t is not executable!"
+	cd "$TEWIBADIR"		# if t is a relative path
+	r=$(realpath "$t")	# use only r from now on, as we may cd
+	if [  -d "$r" ]; then 
+		ts_chdir "$r"
+		ts_dir "$r"
+	elif [ -x "$r" ]; then 
+	    d="${r%/**}"; f="${r##*/}"
+		ts_chdir "$d"
+		ts_test "$f"
+	elif [ -e "$r" ]; then
+	    err "$t is not executable!"
+	else err
+	    "$t not found!"
 	fi
     done
 fi
-ts_end
+[ -n "$_cd" ] && { ts_chdir; _cd=;}
 
 ############################################ Epilogue: print results, and exit
 if [ $_ts_failures = 0 ]; then V "All tests OK =="
