@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-beta.1
+export TEWIBA=1.5.0-beta.2
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -95,8 +95,8 @@ MIT License: http://opensource.org/licenses/MIT
 '
 
 ############################################ Options
-export debug=false
-export debuglog=/tmp/tewiba.$LOGNAME.out
+export _debug=false
+export _debuglog=/tmp/tewiba.$LOGNAME
 export statusfile=
 export ts_standalone=false
 export TEWIBADIR=$(realpath "$PWD")
@@ -112,7 +112,7 @@ while getopts ":${OPTIONS}hv?" _o; do case "$_o" in
 #----single letter options start-----------------------------------------
     e) statusfile="$OPTARG";;
     l) TLEVELS="$OPTARG";;
-    x) debug=true; rm -f $debuglog;;
+    x) _debug=true;;
     s) ts_standalone=true;;
     f) must_tend=false;;
     V) echo "$TEWIBA"; exit 0;;
@@ -122,32 +122,48 @@ En " $i=${!i}";done;E;}>&2;};V(){ E "== $*" >&2;};v=true;;h) E "$USAGE"
 exit;;\?)err "Bad option: -$OPTARG, -h for help.";;':')err "Missing arg: \
 -$OPTARG";;*)err "Bad option: -$_o, -h for help.";esac;done;shift $((OPTIND-1))
 #----bashoptions-getopts end---------------------------------------------
-TV=$v
+[ -z "$TV" ] && TV=$v
 err(){ echo "***ERROR: $*" >&2; TCLEANUP; exit 1;}
-
+if $_debug; then
+    for i in "$@"; do
+	_debuglog="$_debuglog-${i##*/}"
+    done
+    _debuglog="$_debuglog.log"
+    rm -f "$debuglog"
+fi
 
 ############################################ Convenience funcs & vars
-# These can be used in your tests script files
+# These can be used in your tests script files.
+
+# Also, these are only useful for debugging tewiba itself, 
+# so they are not not mentioned in the USAGE help.
+# TECHO text    An echo that prints only in verbose mode, on stderr but does
+#               not pollute the stderr of tests when in sub-tewibas
+# TECHOF text   Same, but prints in all modes
+#
 export tmp=/tmp/tewiba.$$
 export nl=$'\n' #'
 export TFAILS=0
 export TOTEST
 # Except the internal ones below, that start with an underscore "_"
-export _ts_failures=0
-export _twtmp=/tmp/tewiba-main.$$
+export _ts_failures=0		# cumulative total of TFAILS
+export _twtmp=/tmp/tewiba-main.$$ # tewiba-reserved temp zone
 export _TINITS=			# the __END__$i to trigger
-export _TEST_CURRENT
+export _TEST_CURRENT		# last TEST arg
 export _cd=			# dir we are in, with its __INIT__ executed
+export _tvfd			# where TV should print for sub-tewibas
 
-TLEVEL(){ [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || ts_exit; }
-TLEVEL_ONLY(){ [[ $* =~ [$TLEVELS] ]] || ts_exit; }
-TEST(){ _TEST_CURRENT="$*"; $TV && echo "== $*" >&2; }
+TLEVEL(){ [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || _ts_exit; }
+TLEVEL_ONLY(){ [[ $* =~ [$TLEVELS] ]] || _ts_exit; }
+TEST(){ _TEST_CURRENT="$*"; TECHO "== $*"; }
 TERR(){ echo "***TEST ERROR ${_TEST_CURRENT}*** $*" >&2; let TFAILS++;}
 FERR(){
     echo "***FATAL ERROR ${_TEST_CURRENT}*** $*" >&2; let TFAILS++
-    ts_exit $TFAILS
+    _ts_exit $TFAILS
 }
-TEND(){ ts_exit $TFAILS; }
+TEND(){ _ts_exit $TFAILS; }
+TECHO(){ $TV && TECHOF "$@" || return;}
+TECHOF(){ [ -n "$_tvfd" ] && echo "$@" >>$_tvfd || echo "$@" >&2;}
 TINIT(){
     $ts_standalone && return
     local id; _TINITS=
@@ -166,7 +182,7 @@ TCLEANUP(){ # with guards to avoid disaster if something undefined the vars
 }
 trap TCLEANUP 0
 # low-level exit, runs TCLEANUP for safety if our trap 0 was overriden
-ts_exit(){ : TCLEANUP; exit "${1:-0}"; }
+_ts_exit(){ : TCLEANUP; exit "${1:-0}"; }
 
 # Usage: DOTEST [option] label expected-output-string parameters-to-$TOTEST
 # option: -e tests only the stderr of TOTEST, -s its status (exit code: $?)
@@ -191,7 +207,8 @@ DOTEST(){
 # push back the TINITS from the child test process to the underlying tewiba
 _tinits_push(){ echo "$_cd $*" >>$_twtmp.endids;}
 
-export -f TLEVEL TEST TERR FERR TEND TINIT ts_exit TCLEANUP DOTEST _tinits_push
+export -f TLEVEL TEST TERR FERR TEND TECHO TECHOF TINIT TCLEANUP DOTEST \
+    _tinits_push _ts_exit
 
 ############################################ Code
 
@@ -299,7 +316,7 @@ ts_level(){
 
 # execute a single test in the current directory
 ts_test(){
-    local t="$1" s="#################################" oTV="$TV"
+    local t="$1" s="#################################" otvfd="$_tvfd" mess
     local f="${t##*/}"
     ts_level "$t" || return
     ! egrep -q '^([^#]*;|[[:space:]]*)TEND([;[:space:]]|$)' "$t" && \
@@ -308,33 +325,40 @@ ts_test(){
 	err "Test file \"$t\" does not have a TEND statement. Use -f to force."
     _TEST_CURRENT="$f" # default TEST name: the filename
     TFAILS=0
-    if $debug; then
-	echo "$s$s$nl$s Test file: $t$nl$s$s" >>$debuglog
+    if $_debug; then
+	echo "$s$s$nl$s Test File: $t$nl$s$s" >>$_debuglog
         # RUN TEST in Trace Mode
-	TV=false
-	bash -x "$t" >>$debuglog 2>&1; status=$?
-	TV=$oTV
+	_tvfd=$twtmp.terr
+	bash -x "$t" >>$_debuglog 2>&1; status=$?
+	if [ -e $_tvfd ]; then
+	    echo "$s Tewiba traces:">>$_debuglog; cat $_tvfd >>$_debuglog 
+	    rm -f $_tvfd
+	fi
+	_tvfd="$otvfd"
     else
-	$TV && echo -n "== Test file: $f:"
+	TECHO "== Test file: $f:"
         # RUN TEST
-	TV=false
+	_tvfd=$twtmp.terr
 	"$t" >$_twtmp.out 2> >(tee -a $_twtmp.err >&1); status=$?
-	TV=$oTV
+	[ -e $_tvfd ] && mess=$(cat $_tvfd)
+	rm -f $_tvfd
+	_tvfd="$otvfd"
+	[ -n "$mess" ] && TECHO "$mess"
 	let '_ts_failures += status'
 	if [ $status == 0 ]; then
 	    if test -s $_twtmp.err; then 
-		if $TV; then echo "OK, but printed on stderr:"
-		else echo "###Warning: test $f OK, but printed on stderr:"
+		if $TV; then TECHO "OK, but printed on stderr:"
+		else TECHOF "###Warning: test $f OK, but printed on stderr:"
 		fi
 		print_indent $_twtmp.err
 	    else
-		$TV && echo " OK"
+		TECHO "== OK"
 	    fi
 	else
-	    if $TV; then echo "***ERRORS:$status"
+	    if $TV; then TECHO "***ERRORS:$status"
 	    else 
-		echo "***FAILED ($status ERRORS): $f"
-	  if test -s $_twtmp.err; then print_indent $_twtmp.err; fi
+		TECHOF "***FAILED ($status ERRORS): $f"
+		if test -s $_twtmp.err; then print_indent $_twtmp.err; fi
 	    fi
 	fi
 	if $TV && test -s $_twtmp.out; then print_indent $_twtmp.out; fi
@@ -342,8 +366,12 @@ ts_test(){
     fi
 }
 
-# print test outputs indented by 3 spaces for lisibility
-print_indent(){ sed -e 's/^/   /' <"$1"; }
+# print test outputs indented by 3 spaces for lisibility, on _tvfd
+print_indent(){
+    [ -n "$_tvfd" ] && \
+	sed -e 's/^/   /' <"$1" >>$_tvfd || \
+	sed -e 's/^/   /' <"$1" >&2
+}
 
 # is $1 a subdir of $2? aka $2 is a strict non-empty substring of $1?
 is_subdir_of(){ [ -n "$2" ]&&[ "${1:0:${#2}}" == "$2" ]&&[ "$1" != "$2" ];}
@@ -379,6 +407,6 @@ fi
 if [ $_ts_failures = 0 ]; then V "All tests OK =="
 else echo "== ***** Total tests failed: $_ts_failures *****"
 fi
-$debug && echo "== log of execution in $debuglog"
+$_debug  && TECHOF "== log of execution in $_debuglog for $*"
 [ -n "$statusfile" ] && echo "$_ts_failures" >"$statusfile"
-ts_exit $_ts_failures
+_ts_exit $_ts_failures

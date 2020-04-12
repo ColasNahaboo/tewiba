@@ -2,7 +2,6 @@
 # checks that __INIT__ and __END__ are properly executed
 [ -n "$TEWIBA" ] || exec tewiba -v "$0"
 
-opt=; $TV && opt=-v
-../tewiba $opt begin-end.data1 begin-end.data2
+../tewiba begin-end.data1 begin-end.data2
 
 TIGNORE=\;TEND

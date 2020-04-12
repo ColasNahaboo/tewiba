@@ -8,7 +8,7 @@
 [ -n "$TEWIBA" ] || exec tewiba -v "$0"
 
 TEST recursion in dirs
-out=$(../tewiba -v recursion.data 2>$tmp.err)
+out=$(../tewiba recursion.data 2>$tmp.err)
 err=$(cat $tmp.err)
 
 tok='== Test file: too2.subtests: OK
