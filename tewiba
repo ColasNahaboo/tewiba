@@ -276,9 +276,10 @@ ts_dir(){
 		ts_chdir "$r"
 		ts_dir
 	    fi
-	else # ignore #-prefixed, ~-suffixed, tewiba and non-executables
-	    if [[ $i =~ (^[\#._]|~$) ]] || [ ! -x "$i" ] || [ "$i" = tewiba ]||
-		[ ! -s "$i" ]; then continue
+	else # ignore #_.-prefixed, ~-suffixed, core tewiba and non-executables
+	    if [[ $i =~ (^[\#._]|~$|^core$) ]] || \
+		[ ! -x "$i" ] || [ "$i" = tewiba ] || [ ! -s "$i" ]; then
+		continue
 	    else
 		ts_test "$r"
 	    fi
