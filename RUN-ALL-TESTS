@@ -26,14 +26,15 @@ unset TEWIBA			# clean slate for tewiba
 # or as argument to tewiba (terse mode), e.g: cd tests; tewiba foo.test
 # we look for the tewiba executable in tests/ or above, or on the system
 
-[ -d tests ] && cd tests || exit 1
+if [ -d tests ]; then dir=tests
+elif [[ $PWD =~ tests$ ]]; then dir=.
+else echo "***ERROR: must be run in a tests dir or above one"; exit 1
+fi
 
 if [ -x tewiba ]; then tewiba=./tewiba
-elif [ -x ../tewiba ]; then tewiba=../tewiba
+elif [ -x tests/tewiba ]; then tewiba=tests/tewiba
 elif command -v tewiba >/dev/null; then tewiba=tewiba
 else { echo "***ABORTING: tewiba executable not found" >&2; exit 1; }
 fi
 
-for test in *.test; do
-    [ "$test" != "*.test" ] && $tewiba "$@" "$test"
-done
+$tewiba "$@" .
