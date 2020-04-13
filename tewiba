@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-beta.7
+export TEWIBA=1.5.0-beta.8
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -110,7 +110,7 @@ MIT License: http://opensource.org/licenses/MIT
 
 ############################################ Options parsing
 export _debug=false
-export _debuglog=/tmp/tewiba.$LOGNAME
+export _debuglog=/tmp/tewiba.$LOGNAME.xlog
 export statusfile=
 export ts_standalone=false
 export TEWIBADIR=$(realpath "$PWD")
@@ -139,11 +139,7 @@ exit;;\?)err "Bad option: -$OPTARG, -h for help.";;':')err "Missing arg: \
 [ -z "$TV" ] && TV=$v
 err(){ echo "***ERROR: $*" >&2; TCLEANUP; exit 1;}
 if $_debug; then
-    for i in "$@"; do
-	_debuglog="$_debuglog-${i##*/}"
-    done
-    _debuglog="$_debuglog.log"
-    rm -f "$debuglog"
+    rm -f "$_debuglog"
 fi
 
 ############################################ Tewiba API: usable funcs & vars
@@ -165,19 +161,21 @@ export _twtmp=/tmp/tewiba-main.$$ # tewiba-reserved temp zone
 export _TINITS=			# the __END__$i to trigger
 export _TEST_CURRENT		# last TEST arg
 export _cd=			# dir we are in, with its __INIT__ executed
-export _tvfd			# where TV should print for sub-tewibas
+export _twfd			# out-of-band file descriptor for tewiba itself
+# at toplevel, tewiba fd gets merged into stderr
+[ -z "$_twfd" ] && exec 3>&2 && _twfd=3
 
 TLEVEL(){ [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || _ts_exit; }
 TLEVEL_ONLY(){ [[ $* =~ [$TLEVELS] ]] || _ts_exit; }
 TEST(){ _TEST_CURRENT="$*"; TECHO "== $*"; }
-TERR(){ echo "***TEST ERROR ${_TEST_CURRENT}*** $*" >&2; let TFAILS++;}
+TERR(){ echo "***TEST ERROR ${_TEST_CURRENT}*** $*" >&3; let TFAILS++;}
 FERR(){
-    echo "***FATAL ERROR ${_TEST_CURRENT}*** $*" >&2; let TFAILS++
+    echo "***FATAL ERROR ${_TEST_CURRENT}*** $*" >&3; let TFAILS++
     _ts_exit $TFAILS
 }
 TEND(){ _ts_exit $TFAILS; }
 TECHO(){ $TV && TECHOF "$@" || return;}
-TECHOF(){ [ -n "$_tvfd" ] && echo "$@" >>$_tvfd || echo "$@" >&2;}
+TECHOF(){ echo "$@" >&3;}
 TINIT(){
     $ts_standalone && return
     local id; _TINITS=
@@ -341,7 +339,7 @@ ts_level(){
 
 # execute a single test in the current directory
 ts_test(){
-    local t="$1" s="#################################" otvfd="$_tvfd" mess
+    local t="$1" s="#################################" mess
     local f="${t##*/}"
     ts_level "$t" || return
     ! egrep -q '^([^#]*;|[[:space:]]*)TEND([;[:space:]]|$)' "$t" && \
@@ -353,21 +351,11 @@ ts_test(){
     if $_debug; then
 	echo "$s$s$nl$s Test File: $t$nl$s$s" >>$_debuglog
         # RUN TEST in Trace Mode
-	_tvfd=$_twtmp.terr
-	bash -x "$t" >>$_debuglog 2>&1; status=$?
-	if [ -e $_tvfd ]; then
-	    echo "$s Tewiba traces:">>$_debuglog; cat $_tvfd >>$_debuglog 
-	    rm -f $_tvfd
-	fi
-	_tvfd="$otvfd"
+	bash -x "$t" >>$_debuglog 2>&1 3>&1; status=$? # merge all outputs
     else
 	TECHO "== Test file: $f:"
         # RUN TEST
-	_tvfd=$_twtmp.terr
-	"$t" >$_twtmp.out 2> >(tee -a $_twtmp.err >&1); status=$?
-	[ -e $_tvfd ] && mess=$(cat $_tvfd)
-	rm -f $_tvfd
-	_tvfd="$otvfd"
+	"$t" 2>$_twtmp.err >$_twtmp.out; status=$?
 	[ -n "$mess" ] && TECHO "$mess"
 	let '_ts_failures += status'
 	if [ $status == 0 ]; then
@@ -390,12 +378,8 @@ ts_test(){
     fi
 }
 
-# print test outputs indented by 3 spaces for lisibility, on _tvfd
-print_indent(){
-    [ -n "$_tvfd" ] && \
-	sed -e 's/^/   /' <"$1" >>$_tvfd || \
-	sed -e 's/^/   /' <"$1" >&2
-}
+# print test outputs indented by 3 spaces for lisibility
+print_indent(){	sed -e 's/^/   /' <"$1" >&3;}
 
 # is $1 a subdir of $2? aka $2 is a strict non-empty substring of $1?
 is_subdir_of(){ [ -n "$2" ]&&[ "${1:0:${#2}}" == "$2" ]&&[ "$1" != "$2" ];}
