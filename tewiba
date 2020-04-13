@@ -60,6 +60,9 @@ How to write tests:
                                 if value is not a number, expects any error
                    -S let-expr  expects let arithmetic expression to be true,
                                 with the variable "status" holding the status
+     TECHO text    An echo that prints on stderr, only in verbose mode, but
+                   that yewiba do not confuse with code errors in subtests
+     TECHOF text   Same, but prints also in non-verbose mode
      $TV           is true in tewiba verbose mode, false otherwise
      $tmp          temporary data prefix (see above)
      $nl           is the newline character
