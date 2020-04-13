@@ -353,7 +353,7 @@ ts_test(){
     if $_debug; then
 	echo "$s$s$nl$s Test File: $t$nl$s$s" >>$_debuglog
         # RUN TEST in Trace Mode
-	_tvfd=$twtmp.terr
+	_tvfd=$_twtmp.terr
 	bash -x "$t" >>$_debuglog 2>&1; status=$?
 	if [ -e $_tvfd ]; then
 	    echo "$s Tewiba traces:">>$_debuglog; cat $_tvfd >>$_debuglog 
@@ -363,7 +363,7 @@ ts_test(){
     else
 	TECHO "== Test file: $f:"
         # RUN TEST
-	_tvfd=$twtmp.terr
+	_tvfd=$_twtmp.terr
 	"$t" >$_twtmp.out 2> >(tee -a $_twtmp.err >&1); status=$?
 	[ -e $_tvfd ] && mess=$(cat $_tvfd)
 	rm -f $_tvfd
