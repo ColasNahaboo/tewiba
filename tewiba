@@ -74,7 +74,8 @@ How to write tests:
                    To compare versions in bash, we include a convenience
                    function to use in your code, see tests/semvers2int.test
      $TEWIBADIR    the original directory where tewiba was run
-   * All tewiba functions above print on stderr.
+   * All tewiba functions print on a separate file descriptor than stdout and 
+     stderr, but end up on stderr at the top level (terminal).
    * IMPORTANT: the shell function TCLEANUP must be called at the end of the
      tests, to clean the temporary data. tewiba traps the signal 0 for this,
      so you have nothing to do if you do not use "trap" in your tests.
