@@ -1,0 +1,41 @@
+#!/bin/bash
+# run via tewiba
+[ -n "$TEWIBA" ] || exec tewiba -v "$0"
+
+# This function is not in the tewiba code, but is provided to help to compare
+# semantic revisions in bash scripts.
+# It converts a semantic version into a lexicographically-sortable string
+# For instance, if you require at least v1.5.1-beta.4, perform the test:
+# [ $(semvers2int $TEWIBA) '>=' $(semvers2int 1.5.1-beta.4) ]
+# Limitation: it only understands one pre-release identifier, optionally
+# followed by a number. E.g: -alpha, -beta.3, but not -pre.dev
+
+# The code to copy-paste in yours
+
+semvers2int(){
+    local v p b d='([[:digit:]]+)'
+    [[ $1 =~ ^$d[.]$d[.]$d(-([[:alnum:]]+)([.][[:digit:]]+)?)?([+]$d)?$ ]] || \
+	return 1
+    v=$(printf '%03d%03d%03d' ${BASH_REMATCH[1]} ${BASH_REMATCH[2]} \
+	${BASH_REMATCH[3]})
+    [ -n "${BASH_REMATCH[5]}" ] && p="-${BASH_REMATCH[5]}" || p='='
+    [ -n "${BASH_REMATCH[6]}" ] && \
+	p="$p"$(printf '%03d' "${BASH_REMATCH[6]#.}") || p="${p}00"
+    [ -n "${BASH_REMATCH[8]}" ] && b="~"$(printf '%03d' "${BASH_REMATCH[8]}")
+    echo "v$v$p$b"
+}
+
+# Some testing of it
+
+st() { test "$(semvers2int $1) < $(semvers2int $2)";}
+
+DOTEST -l s2i1 -s 0 st 1.1.0 1.1.0+12
+DOTEST -l s2i2 -s 0 st 1.1.2+24 1.1.10
+DOTEST -l s2i3 -s 0 st 1.1.0-alpha.2 1.1.0-beta.1
+DOTEST -l s2i4 -s 0 st 1.1.0-alpha.2 1.1.0
+DOTEST -l s2i5 -s 0 st 1.1.0-zeta 1.1.0
+DOTEST -l s2i6 -s 0 st 1.1.0-alpha.2+12 1.1.0-beta.1
+DOTEST -l s2i7 -s 0 st 1.1.0-alpha.2+45 1.1.0
+DOTEST -l s2i8 -s 0 st 1.1.0-zeta+37 1.1.0
+
+TEND

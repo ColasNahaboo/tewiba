@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-beta.4
+export TEWIBA=1.5.0-beta.5
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -68,6 +68,8 @@ How to write tests:
                    [ -n "$TEWIBA" ] || exec tewiba -v "$0"
                    so that the test file can be executed standalone as it will
                    auto-run tewiba on itself, in verbose mode.
+                   To compare versions in bash, we include a convenience
+                   function to use in your code, see tests/semvers2int.test
      $TEWIBADIR    the original directory where tewiba was run
    * All tewiba functions above print on stderr.
    * IMPORTANT: the shell function TCLEANUP must be called at the end of the
