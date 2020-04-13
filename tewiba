@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-beta.5
+export TEWIBA=1.5.0-beta.7
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -181,7 +181,7 @@ TINIT(){
     for id in "$@"; do 
 	id="${id//[^-_.a-zA-Z0-9/}"
 	[-z "$id" ] && continue
-	[ -f __INIT__$id ] && . __INIT__$id
+	_ts_source __INIT__$id
 	_TINITS="$id $_TINITS"	# reverse order from inits
     done
     _tinits_push $_TINITS
@@ -192,8 +192,6 @@ TCLEANUP(){ # with guards to avoid disaster if something undefined the vars
     [ -n "$tmp" ] && rm -rf $tmp $tmp.*
 }
 trap TCLEANUP 0
-# low-level exit, runs TCLEANUP for safety if our trap 0 was overriden
-_ts_exit(){ : TCLEANUP; exit "${1:-0}"; }
 
 # Usage: DOTEST [options] command-to-test its-options...
 DOTEST(){
@@ -223,9 +221,15 @@ DOTEST(){
 # push back the TINITS from the child test process to the underlying tewiba
 _tinits_push(){ echo "$_cd $*" >>$_twtmp.endids;}
 
+# low-level exit
+_ts_exit(){ exit "${1:-0}"; }
+
+# source if exist, and trace if verbose 
+_ts_source(){ [ -f "$1" ] && { TECHO "== Sourcing $1"; . "$1";};}
+
 # export these functions to be usable in test scripts
 export -f TLEVEL TEST TERR FERR TEND TECHO TECHOF TINIT TCLEANUP DOTEST \
-    _tinits_push _ts_exit
+    _tinits_push _ts_exit _ts_source
 
 ############################################ Tewiba internals
 # these functions are local to tewiba and not available to test scripts
@@ -264,7 +268,7 @@ tscd(){
 	err "Fatal: tewiba failed to enter test dir: $d$expansed"
     }	
     $ts_standalone && return
-    [ -f __INIT__ ] && . __INIT__
+    _ts_source __INIT__
     [ -f __END__ ] && echo "$_cd " >>$_twtmp.ends # remember to do it on exit
 }
 
@@ -284,8 +288,8 @@ ts_chdir(){
 	    is_subdir_of "$i" "$d" || break
 	    cd "$i"
 	    _TINITS=$(tinits_pull "$i")
-	    for id in $_TINITS; do [ -f __END__$id ] && . __END__$id;done
-	    [ -f __END__ ] && . __END__
+	    for id in $_TINITS; do _ts_source __END__$id;done
+	    _ts_source __END__
 	done < <(tac $_twtmp.ends 2>/dev/null)
 	cd "$d"
 	_cd="$d"
@@ -293,8 +297,8 @@ ts_chdir(){
 	while read i; do
 	    cd "$i"
 	    _TINITS=$(tinits_pull "$i")
-	    for id in $_TINITS; do [ -f __END__$id ] && . __END__$id;done
-	    [ -f __END__ ] && . __END__
+	    for id in $_TINITS; do _ts_source __END__$id;done
+	    _ts_source __END__
 	done < <(cat $_twtmp.ends 2>/dev/null)
 	rm -f $_twtmp.ends
 	tscd "$d"
@@ -380,7 +384,6 @@ ts_test(){
 	    fi
 	fi
 	if $TV && test -s $_twtmp.out; then print_indent $_twtmp.out; fi
-	[ -n "$tmp" ] && rm -rf $tmp $tmp.*
     fi
 }
 
