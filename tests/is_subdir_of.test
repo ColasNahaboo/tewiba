@@ -1,0 +1,26 @@
+#!/bin/bash
+[ -n "$TEWIBA" ] || exec tewiba -v "$0"
+
+TEST is_subdir_of function
+
+# extract the is_subdir_of definition to create a test script ts
+ts=$tmp.ts
+echo '#!/bin/bash' >$ts
+if grep '^is_subdir_of[(].*[}][[:space:]]$' ../tewiba; then # single line def
+    grep '^is_subdir_of[(].*[}][[:space:]]$' ../tewiba >>$ts
+else # multi-line line def
+    sed -n -e '/^is_subdir_of[(][)][{]/,/^[}]/p' ../tewiba >>$ts
+fi
+echo 'is_subdir_of "$@"'>> $ts
+chmod a+x $ts
+
+bash -n $ts || TERR syntax error in dotest
+
+DOTEST -l t1 -s 0 $ts /foo/bar /foo
+DOTEST -l t2 -s x $ts /foo /foo/bar
+DOTEST -l t3 -s x $ts /foo/bar /foo/bar
+DOTEST -l t4 -s x $ts '' /foo/bar
+DOTEST -l t5 -s x $ts /foo/bar ''
+DOTEST -l t6 -s x $ts '' ''
+
+TEND

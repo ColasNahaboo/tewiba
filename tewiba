@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-beta.2
+export TEWIBA=1.5.0-beta.4
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -45,13 +45,21 @@ How to write tests:
                    ensures that files __INIT__id and __END__id are sourced,
                    if they exist, before and after all tests of the file,
                    after and before __INIT__ and __END__ respectively
-     DOTEST [-o|-e|-s] label expected-output-string parameters
-                   runs the command in $TOTEST - that you must define - with
-                   the parameters as its command line options, compare its
-                   output to the expected-output-string (or its stderr with
-                   -e, or its exit code status with -s. The default is -o for
-                   stdout), and in case of difference triggers a TERR 
-                   displaying the label, the result and the expected string.
+     DOTEST options command parameters..,
+                   runs the command with parameters, and compare it to the 
+                   expected result(s) in options, and trigger TERR for each
+                   mismatch. Returns the number of failures (0 to 3). Options:
+                   -l label     prefix TERR messages by label
+                   -o string    expects output to be exactly string
+                   -O regexp    expects output to match regexp with [[ =~ ]]
+                   -e string    expects output to be exactly string
+                   -E regexp    expects output to match regexp with [[ =~ ]]
+                   -o string    expects output to be exactly string
+                   -O regexp    expects output to match regexp with [[ =~ ]]
+                   -s value     expects exit status to be value (0 = success)
+                                if value is not a number, expects any error
+                   -S let-expr  expects let arithmetic expression to be true,
+                                with the variable "status" holding the status
      $TV           is true in tewiba verbose mode, false otherwise
      $tmp          temporary data prefix (see above)
      $nl           is the newline character
@@ -63,8 +71,9 @@ How to write tests:
      $TEWIBADIR    the original directory where tewiba was run
    * All tewiba functions above print on stderr.
    * IMPORTANT: the shell function TCLEANUP must be called at the end of the
-     tests, to clean the temporary data. tewiba traps the signal 0 for this.
-     if you redefine trap 0 in your tests, or in a script you source, you 
+     tests, to clean the temporary data. tewiba traps the signal 0 for this,
+     so you have nothing to do if you do not use "trap" in your tests.
+     If you redefine trap 0 in your tests, or in a script you source, you 
      should either make your trap function also call TCLEANUP, or redo a
      "trap TCLEANUP 0" at the end of your tests.
 
@@ -184,24 +193,29 @@ trap TCLEANUP 0
 # low-level exit, runs TCLEANUP for safety if our trap 0 was overriden
 _ts_exit(){ : TCLEANUP; exit "${1:-0}"; }
 
-# Usage: DOTEST [option] label expected-output-string parameters-to-$TOTEST
-# option: -e tests only the stderr of TOTEST, -s its status (exit code: $?)
-# TOTEST must be defined to the command to test
+# Usage: DOTEST [options] command-to-test its-options...
 DOTEST(){
-    [ -n "TOTEST" ] || \
-	err 'DOTEST requires $TOTEST to contain the command to test'
-    local _what=o
-    case "$1" in -s)_what=s;shift;; -e)_what=e;shift;; -o)_what=o;shift;; esac
-    local _name="$1"; shift
-    local _expect="$1"; shift
-    local _result
-    case $_what in
-	o) _result=$($TOTEST "$@");;
-	e) _result=$($TOTEST "$@" 2>&1 >/dev/null);;
-	s) $TOTEST "$@" >/dev/null 2>&1; _result=$?;;
-    esac
-    [ "$_result" == "$_expect" ] || 
-    TERR "$_name:${nl}Expect: \"$_expect\"${nl}Got>>>: \"$_result\""
+    local opt label o to e te s ts result status r=0
+    OPTIND=1; while getopts 'o:O:e:E:s:S:l:' opt; do case "$opt" in
+	l) label="$OPTARG ";;
+        o) o="$OPTARG"; to=f;; O) o="$OPTARG"; to=r;;
+        e) e="$OPTARG"; te=f;; E) e="$OPTARG"; te=r;;
+        s) [[ "$OPTARG" =~ ^-?[[:digit:]]+$ ]] && \
+	    s="status != $OPTARG" || s="status != 0" ; ts=r;;
+        S) s="$OPTARG"; ts=r;;
+    esac; done; shift $((OPTIND-1))
+
+    "$@" >$tmp.dotest.out 2>$tmp.dotest.err; status=$?
+
+    [ -n "$to" ] && result=$(cat $tmp.dotest.out) && \
+	[[ ( $to = f && "$result" != "$o" ) || ! $result =~ $o ]] &&let r++&&\
+	TERR "${label}stdout${nl}Expect: \"$o\"${nl}Got>>>: \"$result\""
+    [ -n "$te" ] && result=$(cat $tmp.dotest.err) && \
+	[[ ( $te = f && "$result" != "$e" ) || ! $result =~ $e ]] &&let r++&&\
+	TERR "${label}stderr${nl}Expect: \"$o\"${nl}Got>>>: \"$result\""
+    [ -n "$ts" ] && let "$s" &&let r++&& \
+	TERR "${label}status expected: \"$s\", got $status"
+    return $r
 }
 
 # push back the TINITS from the child test process to the underlying tewiba
