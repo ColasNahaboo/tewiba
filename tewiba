@@ -105,7 +105,7 @@ Copyright (c) 2013-2020 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
 '
 
-############################################ Options
+############################################ Options parsing
 export _debug=false
 export _debuglog=/tmp/tewiba.$LOGNAME
 export statusfile=
@@ -143,7 +143,7 @@ if $_debug; then
     rm -f "$debuglog"
 fi
 
-############################################ Convenience funcs & vars
+############################################ Tewiba API: usable funcs & vars
 # These can be used in your tests script files.
 
 # Also, these are only useful for debugging tewiba itself, 
@@ -223,10 +223,12 @@ DOTEST(){
 # push back the TINITS from the child test process to the underlying tewiba
 _tinits_push(){ echo "$_cd $*" >>$_twtmp.endids;}
 
+# export these functions to be usable in test scripts
 export -f TLEVEL TEST TERR FERR TEND TECHO TECHOF TINIT TCLEANUP DOTEST \
     _tinits_push _ts_exit
 
-############################################ Code
+############################################ Tewiba internals
+# these functions are local to tewiba and not available to test scripts
 
 # quote the arg string for regexp use, if many, prints them one per line
 # $1=string, prints quoted form for inclusion in regexpes in stdout
@@ -392,7 +394,7 @@ print_indent(){
 # is $1 a subdir of $2? aka $2 is a strict non-empty substring of $1?
 is_subdir_of(){ [ -n "$2" ]&&[ "${1:0:${#2}}" == "$2" ]&&[ "$1" != "$2" ];}
 
-############################################ Main
+############################################ Main logic
 
 # run all tests given in arguments, or in the current dir if none given
 
