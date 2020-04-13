@@ -6,10 +6,9 @@ TEST dotest function
 # extract the DOTEST definition to create a dotest script ds
 ds=$tmp.ds
 echo '#!/bin/bash
-_TERR(){ echo "$@" >$tmp.ds.err;}' >$ds
-sed -n -e '/^DOTEST[(][)][{]/,/^[}]/p' ../tewiba | \
-    sed -e s/DOTEST/_DOTEST/g -e s/TERR/_TERR/g >>$ds
-echo '_DOTEST "$@"'>> $ds
+TERR(){ echo "$@" >$tmp.ds.err;}' >$ds
+sed -n -e '/^DOTEST[(][)][{]/,/^[}]/p' ../tewiba >>$ds
+echo 'DOTEST "$@"'>> $ds
 chmod a+x $ds
 
 bash -n $ds || TERR syntax error in dotest
