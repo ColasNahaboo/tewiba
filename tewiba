@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-beta.9
+export TEWIBA=1.5.0-beta.8
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -31,11 +31,9 @@ How to write tests:
      they will be automatically cleaned afterwards by rm -rf $tmp $tmp.*
    * Test data can be put in subdirectories, as subdirectories are not tested
    * Convenience functions & variables that you can use in bash script tests:
-     TLEVEL ids... only runs if a level the space or comma-separated ids
-                   matches of of the regexpes given by -l, or if -l is not
-                   specified. Each id can be comprised of letters, digits, 
-                   hyphens, dots, and underscores.
-     TLEVEL_ONLY ids...     Same as above but does not run if -l not given.
+     TLEVEL chars  only runs if a level in chars is in the ones given by -l,
+                   or -l not specified. Each level is an alphanumeric char.
+     TLEVEL_ONLY chars    Same as above but does not run if -l not given 
      TEST message  prints sub-test (the file name is the test name) name if 
                    verbose, and as label in TERR messages.
      TERR message  declares an error, but continues the tests.
@@ -94,10 +92,9 @@ Options:
    -V      just prints tewiba version number
    -x      debug: execute each test in set -x mode copying also the output to
            /tmp/tewiba.$LOGNAME.out Note: does not imply -v
-   -l levels  runs only tests of the levels (identifiers) that matches one of 
-           the regexps (for [[...]]]) in levels, which must be a string of
-           space or comma-separated regexpes
-           "TLEVEL x" in a test runs when given "-l y,z" if [[ x =~ ^(y|z)$ ]]
+   -l levels  runs only tests of the levels (characters) in the string levels
+           "TLEVEL x" in a test runs when given "-l y" if [y] matches x:
+           thus ranges are possible: -l 0-3 matches a TLEVEL 17a
    -s      standalone: do not read __INIT__ nor __END__ files
    -e file outputs the total number of errors in the file. 
    -f      forces running tests files even without a TEND directive in them.
@@ -173,12 +170,8 @@ export _twfd			# out-of-band file descriptor for tewiba itself
 # at toplevel, tewiba fd gets merged into stderr
 [ -z "$_twfd" ] && exec 3>&2 && _twfd=3
 
-TLEVEL_ONLY(){
-    local l r; for l in "$@"; do for r in "${TLEVELS[@]}"; do
-	    l="${l//[^-_.[:alnum:]]/}"; [ -n "$l" ] || continue
-  	    [[ $l =~ ^$r$ ]] && return 0; done; done; ts_exit
-}
-TLEVEL(){ [ "${#TLEVELS[@]}" = 0 ] && return 0 || TLEVEL_ONLY "$@";}
+TLEVEL(){ [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || _ts_exit; }
+TLEVEL_ONLY(){ [[ $* =~ [$TLEVELS] ]] || _ts_exit; }
 TEST(){ _TEST_CURRENT="$*"; TECHO "== $*"; }
 TERR(){ echo "***TEST ERROR ${_TEST_CURRENT}*** $*" >&3; let TFAILS++;}
 FERR(){
@@ -248,7 +241,7 @@ _ts_exit(){ exit "${1:-0}"; }
 _ts_source(){ [ -f "$1" ] && { TECHO "== Sourcing $1"; . "$1";};}
 
 # export these functions to be usable in test scripts
-export -f TLEVEL TEST TERR FERR TEND TECHO TECHOF TINIT TCLEANUP DOTEST \
+export -f TLEVEL_ONLY TLEVEL TEST TERR FERR TEND TECHO TECHOF TINIT TCLEANUP DOTEST \
     _tinits_push _ts_exit _ts_source
 
 ############################################ Tewiba internals
