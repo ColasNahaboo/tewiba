@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-beta.8+1
+export TEWIBA=1.5.0-beta.9
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -167,11 +167,13 @@ export _TINITS=			# the __END__$i to trigger
 export _TEST_CURRENT		# last TEST arg
 export _cd=			# dir we are in, with its __INIT__ executed
 export _twfd			# out-of-band file descriptor for tewiba itself
+export _TSKIP                   # file marker to tell tewiba test was skipped
+
 # at toplevel, tewiba fd gets merged into stderr
 [ -z "$_twfd" ] && exec 3>&2 && _twfd=3
 
-TLEVEL(){ [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || _ts_exit; }
-TLEVEL_ONLY(){ [[ $* =~ [$TLEVELS] ]] || _ts_exit; }
+TLEVEL(){ [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || _ts_skip; }
+TLEVEL_ONLY(){ [[ $* =~ [$TLEVELS] ]] || _ts_skip; }
 TEST(){ _TEST_CURRENT="$*"; TECHO "== $*"; }
 TERR(){ echo "***TEST ERROR ${_TEST_CURRENT}*** $*" >&3; let TFAILS++;}
 FERR(){
@@ -237,12 +239,15 @@ _tinits_push(){ echo "$_cd $*" >>$_twtmp.endids;}
 # low-level exit
 _ts_exit(){ exit "${1:-0}"; }
 
+# test skipped, do not aggregate result
+_ts_skip(){ [ -n "$_TSKIP" ] && >$_TSKIP; exit 0; }
+
 # source if exist, and trace if verbose 
 _ts_source(){ [ -f "$1" ] && { TECHO "== Sourcing $1"; . "$1";};}
 
 # export these functions to be usable in test scripts
 export -f TLEVEL_ONLY TLEVEL TEST TERR FERR TEND TECHO TECHOF TINIT TCLEANUP DOTEST \
-    _tinits_push _ts_exit _ts_source
+    _tinits_push _ts_exit _ts_skip _ts_source
 
 ############################################ Tewiba internals
 # these functions are local to tewiba and not available to test scripts
@@ -351,7 +356,7 @@ ts_level(){
 
 # execute a single test in the current directory
 ts_test(){
-    local t="$1" s="#################################" mess
+    local t="$1" s="#################################"
     local f="${t##*/}"
     ts_level "$t" || return
     ! egrep -q '^([^#]*;|[[:space:]]*)TEND([;[:space:]]|$)' "$t" && \
@@ -366,27 +371,32 @@ ts_test(){
 	bash -x "$t" >>$_debuglog 2>&1 3>&1; status=$? # merge all outputs
     else
 	TECHO "== Test file: $f:"
+	_TSKIP=$_twtmp.skip.$$
         # RUN TEST
 	"$t" 2>$_twtmp.err >$_twtmp.out; status=$?
-	[ -n "$mess" ] && TECHO "$mess"
-	let '_ts_failures += status'
-	if [ $status == 0 ]; then
-	    if test -s $_twtmp.err; then 
-		if $TV; then TECHO "OK, but printed on stderr:"
-		else TECHOF "###Warning: test $f OK, but printed on stderr:"
-		fi
-		print_indent $_twtmp.err
-	    else
-		TECHO "== OK"
-	    fi
+	if $TV && test -s $_twtmp.out; then print_indent $_twtmp.out; fi
+	if [ -e "$_TSKIP" ]; then
+	    TECHO "   Skipped"
+	    rm -f "$_TSKIP"
 	else
-	    if $TV; then TECHO "***ERRORS:$status"
-	    else 
-		TECHOF "***FAILED ($status ERRORS): $f"
-		if test -s $_twtmp.err; then print_indent $_twtmp.err; fi
+	    let '_ts_failures += status'
+	    if [ $status == 0 ]; then
+		if test -s $_twtmp.err; then 
+		    if $TV; then TECHO "== OK, but printed on stderr:"
+		    else TECHOF "###Warning: test $f OK, but printed on stderr:"
+		    fi
+		    print_indent $_twtmp.err
+		else
+		    TECHO "== OK"
+		fi
+	    else
+		if $TV; then TECHO "***ERRORS:$status"
+		else 
+		    TECHOF "***FAILED ($status ERRORS): $f"
+		    if test -s $_twtmp.err; then print_indent $_twtmp.err; fi
+		fi
 	    fi
 	fi
-	if $TV && test -s $_twtmp.out; then print_indent $_twtmp.out; fi
     fi
 }
 
