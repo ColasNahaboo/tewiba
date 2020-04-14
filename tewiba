@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-beta.8
+export TEWIBA=1.5.0-beta.9
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -31,20 +31,22 @@ How to write tests:
      they will be automatically cleaned afterwards by rm -rf $tmp $tmp.*
    * Test data can be put in subdirectories, as subdirectories are not tested
    * Convenience functions & variables that you can use in bash script tests:
-     TLEVEL chars  only runs if a level in chars is in the ones given by -l,
-                   or -l not specified. Each level is an alphanumeric char.
-     TLEVEL_ONLY chars    Same as above but does not run if -l not given 
+     TLEVEL ids... only runs if a level the space or comma-separated ids
+                   matches of of the regexpes given by -l, or if -l is not
+                   specified. Each id can be comprised of letters, digits, 
+                   hyphens, dots, and underscores.
+     TLEVEL_ONLY ids...     Same as above but does not run if -l not given.
      TEST message  prints sub-test (the file name is the test name) name if 
-                   verbose, and as label in TERR messages
-     TERR message  declares an error, but continues the tests
-     FERR message  fatal error: also aborts the current test file
+                   verbose, and as label in TERR messages.
+     TERR message  declares an error, but continues the tests.
+     FERR message  fatal error: also aborts the current test file.
      TEND          MANDATORY: terminates your test script.
                    (an alias for: exit $TFAILS)
                    This is the only function really mandatory in a test file.
      TINIT id...   For each id (composed of letters, numbers, and _ - .)
                    ensures that files __INIT__id and __END__id are sourced,
                    if they exist, before and after all tests of the file,
-                   after and before __INIT__ and __END__ respectively
+                   after and before __INIT__ and __END__ respectively.
      DOTEST options command parameters..,
                    runs the command with parameters, and compare it to the 
                    expected result(s) in options, and trigger TERR for each
@@ -52,6 +54,9 @@ How to write tests:
                    -l label     prefix TERR messages by label
                    -o string    expects output to be exactly string
                    -O regexp    expects output to match regexp with [[ =~ ]]
+                   -f reffile   expects output to be the contents of reffile
+                   -c outfile   with -f, on error, saves a copy of the output
+                                into outfile
                    -e string    expects output to be exactly string
                    -E regexp    expects output to match regexp with [[ =~ ]]
                    -o string    expects output to be exactly string
@@ -61,11 +66,12 @@ How to write tests:
                    -S let-expr  expects let arithmetic expression to be true,
                                 with the variable "status" holding the status
      TECHO text    An echo that prints on stderr, only in verbose mode, but
-                   that yewiba do not confuse with code errors in subtests
-     TECHOF text   Same, but prints also in non-verbose mode
-     $TV           is true in tewiba verbose mode, false otherwise
-     $tmp          temporary data prefix (see above)
-     $nl           is the newline character
+                   that yewiba do not confuse with code errors in subtests.
+     TECHOF text   Same, but prints also in non-verbose mode.
+
+     $TV           is true in tewiba verbose mode, false otherwise.
+     $tmp          temporary data prefix (see above).
+     $nl           is the newline character.
      $TEWIBA       the version number of tewiba. Uses semantic versioning.
                    Trick: put after #!/bin/bash the line:
                    [ -n "$TEWIBA" ] || exec tewiba -v "$0"
@@ -73,7 +79,7 @@ How to write tests:
                    auto-run tewiba on itself, in verbose mode.
                    To compare versions in bash, we include a convenience
                    function to use in your code, see tests/semvers2int.test
-     $TEWIBADIR    the original directory where tewiba was run
+     $TEWIBADIR    the original directory where tewiba was run.
    * All tewiba functions print on a separate file descriptor than stdout and 
      stderr, but end up on stderr at the top level (terminal).
    * IMPORTANT: the shell function TCLEANUP must be called at the end of the
@@ -88,9 +94,10 @@ Options:
    -V      just prints tewiba version number
    -x      debug: execute each test in set -x mode copying also the output to
            /tmp/tewiba.$LOGNAME.out Note: does not imply -v
-   -l levels  runs only tests of the levels (characters) in the string levels
-           "TLEVEL x" in a test runs when given "-l y" if [y] matches x:
-           thus ranges are possible: -l 0-3 matches a TLEVEL 17a
+   -l levels  runs only tests of the levels (identifiers) that matches one of 
+           the regexps (for [[...]]]) in levels, which must be a string of
+           space or comma-separated regexpes
+           "TLEVEL x" in a test runs when given "-l y,z" if [[ x =~ ^(y|z)$ ]]
    -s      standalone: do not read __INIT__ nor __END__ files
    -e file outputs the total number of errors in the file. 
    -f      forces running tests files even without a TEND directive in them.
@@ -115,7 +122,7 @@ export _debuglog=/tmp/tewiba.$LOGNAME.xlog
 export statusfile=
 export ts_standalone=false
 export TEWIBADIR=$(realpath "$PWD")
-export TLEVELS=
+declare -x -a TLEVELS
 export TV
 export must_tend=true
 
@@ -126,7 +133,7 @@ err(){ E "***ERROR: $*" >&2; exit 1;};warn(){ E "###Warning: $*" >&2;}
 while getopts ":${OPTIONS}hv?" _o; do case "$_o" in
 #----single letter options start-----------------------------------------
     e) statusfile="$OPTARG";;
-    l) TLEVELS="$OPTARG";;
+    l) TLEVELS=(${OPTARG//,/ });; # convert to an array
     x) _debug=true;;
     s) ts_standalone=true;;
     f) must_tend=false;;
@@ -166,8 +173,12 @@ export _twfd			# out-of-band file descriptor for tewiba itself
 # at toplevel, tewiba fd gets merged into stderr
 [ -z "$_twfd" ] && exec 3>&2 && _twfd=3
 
-TLEVEL(){ [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || _ts_exit; }
-TLEVEL_ONLY(){ [[ $* =~ [$TLEVELS] ]] || _ts_exit; }
+TLEVEL_ONLY(){
+    local l r; for l in "$@"; do for r in "${TLEVELS[@]}"; do
+	    l="${l//[^-_.[:alnum:]]/}"; [ -n "$l" ] || continue
+  	    [[ $l =~ ^$r$ ]] && return 0; done; done; ts_exit
+}
+TLEVEL(){ [ "${#TLEVELS[@]}" = 0 ] && return 0 || TLEVEL_ONLY "$@";}
 TEST(){ _TEST_CURRENT="$*"; TECHO "== $*"; }
 TERR(){ echo "***TEST ERROR ${_TEST_CURRENT}*** $*" >&3; let TFAILS++;}
 FERR(){
@@ -197,14 +208,15 @@ trap TCLEANUP 0
 
 # Usage: DOTEST [options] command-to-test its-options...
 DOTEST(){
-    local opt label o to e te s ts result status r=0
-    OPTIND=1; while getopts 'o:O:e:E:s:S:l:' opt; do case "$opt" in
+    local opt label o to e te s ts f c result status r=0
+    OPTIND=1; while getopts 'o:O:e:E:s:S:l:f:c:' opt; do case "$opt" in
 	l) label="$OPTARG ";;
         o) o="$OPTARG"; to=f;; O) o="$OPTARG"; to=r;;
         e) e="$OPTARG"; te=f;; E) e="$OPTARG"; te=r;;
         s) [[ "$OPTARG" =~ ^-?[[:digit:]]+$ ]] && \
 	    s="status != $OPTARG" || s="status != 0" ; ts=r;;
         S) s="$OPTARG"; ts=r;;
+	f) f="$OPTARG";; c) c="$OPTARG";;
     esac; done; shift $((OPTIND-1))
 
     "$@" >$tmp.dotest.out 2>$tmp.dotest.err; status=$?
@@ -217,6 +229,12 @@ DOTEST(){
 	TERR "${label}stderr${nl}Expect: \"$o\"${nl}Got>>>: \"$result\""
     [ -n "$ts" ] && let "$s" &&let r++&& \
 	TERR "${label}status expected: \"$s\", got $status"
+    [ -n "$f" ] && ! cmp -s $tmp.dotest.out "$f" &&let r++&&\
+	if [ -n "$c" ]; then cp $tmp.dotest.out "$c"
+	 TERR "${label}output differ, compare expected to result:
+diff ${f@Q} ${F@Q}"
+	else TERR "${label}output differ"
+        fi
     return $r
 }
 

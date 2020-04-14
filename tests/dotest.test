@@ -18,4 +18,9 @@ $ds -l t1 -o foo echo foo || TERR dotest foo
 $ds -s 1 -o '' -E '^mkdir: cannot create directory' mkdir /foo/bar/gee || 
 TERR "mkdir error message:$nl$(cat $tmp.dotest.err)"
 
+echo foo >$tmp.ds.f1
+$ds -l f1 -f $tmp.ds.f1 -c /tmp/f1.$LOGNAME.out echo foo || TERR dotest foofile
+echo bar >$tmp.ds.f2
+$ds -l f2 -f $tmp.ds.f2 -c /tmp/f2.$LOGNAME.out echo foo && TERR dotest foofile
+
 TEND
