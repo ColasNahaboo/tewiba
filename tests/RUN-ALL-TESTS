@@ -7,6 +7,8 @@
 # a simple way to run all the tests in the distrib.
 # (c) 2020 Colas Nahaboo http://colas.nahaboo.net/Software/Tewiba - MIT License
 
+#TEWIBA_IGNORE# This is not a tewiba test.
+
 # Change dir to where this script is, if was called via a complete path
 scriptpath=$(realpath $(which "$0"))
 cd "${scriptpath%/*}" || exit 1

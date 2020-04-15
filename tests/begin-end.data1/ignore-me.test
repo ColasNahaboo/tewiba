@@ -1,0 +1,4 @@
+#!/bin/bash
+
+TERR This test should not have been run, declared ignored by TEWIBA_IGNORE in __INIT__
+TEND

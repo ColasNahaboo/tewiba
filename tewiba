@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-beta.9
+export TEWIBA=1.5.0-beta.10
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -23,7 +23,13 @@ How to write tests:
    * Tests are executable files (in any language), that exit with code 0 if OK,
      and the number of failures if not
    * Test file names can be meaningful, e.g: "Test for empty input"
-   * Filenames beginning with a "." "#" "_" or ending with "~" are ignored
+   * When running on a whole dir, ignores files beginning with ., _, and #,
+     ending with ~, empty, not executable, non-bash scripts (they must have 
+     #!/bin/bash as their first line), containing the string #TEWIBA_IGNORE#,
+     or listed via TEWIBA_IGNORE function (see below).
+     But any file can run as a test if explicitely given as argument to tewiba.
+
+Filenames beginning with a "." "#" "_" or ending with "~" are ignored
      as well as files named "tewiba"
    * They must print on stderr an explanation of the error, or a warning if 
      exit code is 0. Prints on stdout are only shonw in verbose mode
@@ -66,6 +72,9 @@ How to write tests:
      TECHO text    An echo that prints on stderr, only in verbose mode, but
                    that yewiba do not confuse with code errors in subtests.
      TECHOF text   Same, but prints also in non-verbose mode.
+     TWEIBA_IGNORE regular expressions...
+                   ignores the file names matching expressions (for [[ =~ ]])
+                   should be used in a __INIT__ file to apply to the whole dir
 
      $TV           is true in tewiba verbose mode, false otherwise.
      $tmp          temporary data prefix (see above).
@@ -113,6 +122,7 @@ Copyright (c) 2013-2020 Colas Nahaboo (http://colas.nahaboo.net)
 MIT License: http://opensource.org/licenses/MIT
 '
 
+#TEWIBA_IGNORE# This is not a tewiba test.
 ############################################ Options parsing
 export _debug=false
 export _debuglog=/tmp/tewiba.$LOGNAME.xlog
@@ -168,6 +178,7 @@ export _TEST_CURRENT		# last TEST arg
 export _cd=			# dir we are in, with its __INIT__ executed
 export _twfd			# out-of-band file descriptor for tewiba itself
 export _TSKIP                   # file marker to tell tewiba test was skipped
+export _TEWIBA_IGNORE='^$'      # regexp for ignored files
 
 # at toplevel, tewiba fd gets merged into stderr
 [ -z "$_twfd" ] && exec 3>&2 && _twfd=3
@@ -233,6 +244,15 @@ diff ${f@Q} ${F@Q}"
     return $r
 }
 
+# in  __INIT__, declare regexes to ignore file names
+TEWIBA_IGNORE(){
+    if [[ $_TEWIBA_IGNORE =~ ^(\^\$)?$ ]]; then _TEWIBA_IGNORE="^("
+    else _TEWIBA_IGNORE="${_TEWIBA_IGNORE%)}"
+    fi
+    local i; for i in "$@"; do _TEWIBA_IGNORE+="$i|"; done
+    _TEWIBA_IGNORE="${_TEWIBA_IGNORE/%|/)}"
+}
+
 # push back the TINITS from the child test process to the underlying tewiba
 _tinits_push(){ echo "$_cd $*" >>$_twtmp.endids;}
 
@@ -246,7 +266,8 @@ _ts_skip(){ [ -n "$_TSKIP" ] && >$_TSKIP; exit 0; }
 _ts_source(){ [ -f "$1" ] && { TECHO "== Sourcing $1"; . "$1";};}
 
 # export these functions to be usable in test scripts
-export -f TLEVEL_ONLY TLEVEL TEST TERR FERR TEND TECHO TECHOF TINIT TCLEANUP DOTEST \
+export -f TLEVEL_ONLY TLEVEL TEST TERR FERR TEND TECHO TECHOF TINIT TCLEANUP \
+ DOTEST TEWIBA_IGNORE \
     _tinits_push _ts_exit _ts_skip _ts_source
 
 ############################################ Tewiba internals
@@ -333,9 +354,11 @@ ts_dir(){
 		ts_chdir "$r"
 		ts_dir
 	    fi
-	else # ignore #_.-prefixed, ~-suffixed, core tewiba and non-executables
-	    if [[ $i =~ (^[\#._]|~$|^core$) ]] || \
-		[ ! -x "$i" ] || [ "$i" = tewiba ] || [ ! -s "$i" ]; then
+	else # ignore #_.-prefixed, ~-suffixed non-bash-executables, marked
+	    if [[ $i =~ (^[\#._]|~$) || ! -x "$i" || ! -s "$i" ]] || \
+		! grep -q '^#![[:space:]]*/.*/bash' < <(head -1 "$i") || \
+		grep -q '#TEWIBA_IGNORE#' "$i" || \
+		[[ $i =~ $_TEWIBA_IGNORE ]]; then
 		continue
 	    else
 		ts_test "$r"

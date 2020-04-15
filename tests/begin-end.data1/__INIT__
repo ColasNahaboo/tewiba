@@ -1,2 +1,4 @@
 TEST __init 1__
 export myvar1=ufueaaiebcai
+
+TEWIBA_IGNORE ignore-me.test
