@@ -12,6 +12,8 @@
 
 # The code to copy-paste in your tests, maybe in your __INIT__
 
+# converts a Semantic Version string to a lexicographically orderable one
+# from: http://colas.nahaboo.net/Software/Tewiba
 semvers2int(){
     local v p b d='([[:digit:]]+)' M
     [[ $1 =~ ^$d[.]$d[.]$d(-([[:alnum:]]+)([.][[:digit:]]+)?)?([+]$d)?$ ]]&&\
