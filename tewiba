@@ -93,9 +93,9 @@ Filenames beginning with a "." "#" "_" or ending with "~" are ignored
                    semicolons. You can set it at will, the default being:
                    "none=0:error=31:fatal=1;31:info=36:title=34:ok=32:\
                     allok=32;4:warning=35"
-                   and you can extend it with any keys for use in your own 
-                   TECHO statements.
-                   The keys being:
+                   and you can extend it with any extra keys for use in your
+                   own TECHO statements.
+                   The standard tewiba keys being:
                      none      no style
                      error     error messages
                      fatal     fatal or total error messages
