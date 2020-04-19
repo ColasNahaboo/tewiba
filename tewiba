@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-pre.1
+export TEWIBA=1.5.0-pre.2
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -79,15 +79,16 @@ Filenames beginning with a "." "#" "_" or ending with "~" are ignored
                    after and before __INIT__ and __END__ respectively.
      TLEVEL chars  only runs if a level in chars is in the ones given by -l,
                    or -l not specified. Each level is an alphanumeric char.
-                   TLEVEL is a simpler alternative to TCLASS below.
-     TCLASS classes...    specify the classes of the test. Which tests are run
+                   TLEVEL is a simpler alternative to TCLASS below. Option:
+                   -x      does not run if the tewiba option -l is not used.
+     TLEVEL_ONLY chars     An alias for TLEVEL -x for backwards compatibility.
+     TCLASS classes...     specify the classes of the test. Which tests are run
                    can then be specified with the -c option of tewiba.
                    classes can be prefixed by ! for negation, meaning that 
                    the test will not run if the class was specified in -c.
                    TCLASS can have the option "-x" to specify that the test
                    should not run by default (without a -c option to tewiba),
                    e.g. an "xtra" test, not convenient for general use. 
-     TLEVEL_ONLY chars    Same as above but does not run if -l not given 
      TWEIBA_IGNORE regular expressions...
                    ignores the file names matching expressions (for [[ =~ ]])
                    should be used in a __INIT__ file to apply to the whole dir
@@ -257,7 +258,9 @@ TINIT(){
     _tinits_push $_TINITS
 }
 
-TLEVEL(){ [ -z "$_TLEVELS" ] || [[ $* =~ [$_TLEVELS] ]] || _ts_skip; }
+TLEVEL(){ if [[ "$1" = '-x' ]]; then shift; TLEVEL_ONLY "$@"; else
+	[ -z "$_TLEVELS" ] || [[ $* =~ [$_TLEVELS] ]] || _ts_skip; fi
+}
 TLEVEL_ONLY(){ [[ $* =~ [$_TLEVELS] ]] || _ts_skip; }
 
 TCLASS(){
