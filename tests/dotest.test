@@ -1,27 +1,31 @@
 #!/bin/bash
 [ -n "$TEWIBA" ] || exec tewiba -v "$0"
 
-TEST dotest function
+TEST DOTEST function
 
-# extract the DOTEST definition to create a dotest script ds
-ds=$tmp.ds
+# extract the DOTEST definition to create a dotest script ts
+ts=$tmp.ts
 echo '#!/bin/bash
-TERR(){ echo "$@" >$tmp.ds.err;}' >$ds
-sed -n -e '/^DOTEST[(][)][{]/,/^[}]/p' ../tewiba >>$ds
-echo 'DOTEST "$@"'>> $ds
-chmod a+x $ds
+TERR(){ echo "$@" >$tmp.ts.err;}' >$ts
+sed -n -e '/^DOTEST[(][)][{]/,/^[}]/p' ../tewiba >>$ts
+echo 'DOTEST "$@"'>> $ts
+chmod a+x $ts
 
-bash -n $ds || TERR syntax error in dotest
+# first, check the syntax
+if ! bash -n $ts; then
+    TERR syntax error in DOTEST
+    TEND			# do not try to run the rest otherwise
+fi
 
-$ds; [ $? != 0 ] && TERR dotest status failed
-$ds -l t1 -o foo echo foo || TERR dotest foo
-$ds -s 1 -o '' -E '^mkdir: cannot create directory' mkdir /foo/bar/gee || 
+$ts; [ $? != 0 ] && TERR dotest status failed
+$ts -l t1 -o foo echo foo || TERR dotest foo
+$ts -s 1 -o '' -E '^mkdir: cannot create directory' mkdir /foo/bar/gee || 
 TERR "mkdir error message:$nl$(cat $tmp.dotest.err)"
 
-echo foo >$tmp.ds.f1
-$ds -l f1 -f $tmp.ds.f1 -c /tmp/f1.$LOGNAME.out echo foo || TERR dotest foofile
-echo bar >$tmp.ds.f2
-$ds -l f2 -f $tmp.ds.f2 -c /tmp/f2.$LOGNAME.out echo foo && TERR dotest foofile
-DOTEST -l f2 -s 1 $ds -l f2 -f $tmp.ds.f2 -c /tmp/f2.$LOGNAME.out echo foo
+echo foo >$tmp.ts.f1
+$ts -l f1 -f $tmp.ts.f1 -c /tmp/f1.$LOGNAME.out echo foo || TERR dotest foofile
+echo bar >$tmp.ts.f2
+$ts -l f2 -f $tmp.ts.f2 -c /tmp/f2.$LOGNAME.out echo foo && TERR dotest foofile
+DOTEST -l f2 -s 1 $ts -l f2 -f $tmp.ts.f2 -c /tmp/f2.$LOGNAME.out echo foo
 
 TEND

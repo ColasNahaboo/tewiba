@@ -1,0 +1,51 @@
+#!/bin/bash
+[ -n "$TEWIBA" ] || exec tewiba -v "$0"
+
+TEST TCLASS function
+
+# extract the TCLASS definition to create its test script ts
+
+# debug mode: do a "export DEBUG_TCLASS=true" before running this test, it
+# copies the script to /tmp/ts which runs with set -x mode for manual debugging
+
+ts=$tmp.ts
+echo '#!/bin/bash
+TERR(){ echo "$@" >$tmp.ts.err;}
+_ts_skip(){ exit 1;}
+_TCLASS_RE_STRING="$1"; shift' >$ts
+[ -n "$DEBUG_TCLASS" ] && echo "set -x # $(date -Is)" >/tmp/ts #DEBUG
+sed -n -e '/if [[] -n "[$]_TCLASS_RE_STRING"/,/^fi$/p' ../tewiba >>$ts
+sed -n -e '/^TCLASS[(][)][{]/,/^[}]/p' ../tewiba >>$ts
+echo 'TCLASS "$@"' >>$ts
+chmod a+x $ts
+[ -n "$DEBUG_TCLASS" ] && cat $ts >>/tmp/ts && chmod a+x /tmp/ts #DEBUG
+
+# first, check the syntax
+if ! bash -n $ts; then
+    TERR syntax error in TCLASS
+    TEND			# do not try to run the rest otherwise
+fi
+
+# ts "value of tewiba -c option" "arguments to TCLASS"...
+OK(){ [ $? = 0 ] || TERR "$*";}
+ER(){ [ $? = 0 ] && TERR "$*";}
+
+$ts 		;OK 0
+$ts foo bar 	;ER 1
+$ts foo -x bar 	;ER 2
+$ts '' bar 	;OK 3
+$ts '' -x bar 	;ER 4
+$ts '' '' 	;OK 5
+$ts '' -x ''  	;ER 6
+$ts 'short,!db' long db 	;ER 7
+$ts 'short,!db' short long db 	;ER 8
+$ts 'short,!db' short db 	;ER 9
+$ts 'short,!db' bd db 		;ER 10
+$ts 'short,long' long db 	;OK 11
+$ts '(short|long)' long db 	;OK 12
+$ts '(short|long)' medium !db 	;ER 13
+$ts '(short|long)' medium  	;ER 14
+$ts !foo -x foo ;ER 15
+$ts !foo foo 	;ER 16
+
+TEND

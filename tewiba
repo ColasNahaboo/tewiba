@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-beta.11
+export TEWIBA=1.5.0-pre.1
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, on all tests in the current dir (default), 
@@ -79,6 +79,14 @@ Filenames beginning with a "." "#" "_" or ending with "~" are ignored
                    after and before __INIT__ and __END__ respectively.
      TLEVEL chars  only runs if a level in chars is in the ones given by -l,
                    or -l not specified. Each level is an alphanumeric char.
+                   TLEVEL is a simpler alternative to TCLASS below.
+     TCLASS classes...    specify the classes of the test. Which tests are run
+                   can then be specified with the -c option of tewiba.
+                   classes can be prefixed by ! for negation, meaning that 
+                   the test will not run if the class was specified in -c.
+                   TCLASS can have the option "-x" to specify that the test
+                   should not run by default (without a -c option to tewiba),
+                   e.g. an "xtra" test, not convenient for general use. 
      TLEVEL_ONLY chars    Same as above but does not run if -l not given 
      TWEIBA_IGNORE regular expressions...
                    ignores the file names matching expressions (for [[ =~ ]])
@@ -127,9 +135,16 @@ Options:
    -V      just prints tewiba version number
    -x      debug: execute each test in set -x mode copying also the output to
            /tmp/tewiba.$LOGNAME.out Note: does not imply -v
-   -l levels  runs only tests of the levels (characters) in the string levels
+   -l levels    runs only tests of the levels (characters) in the string levels
            "TLEVEL x" in a test runs when given "-l y" if [y] matches x:
            thus ranges are possible: -l 0-3 matches a TLEVEL 17a
+   -c class-expr...   runs only the tests which have one class specified by 
+           TCLASS in them that matches one of the class-expr (a space or
+           comma-separated list of class names, or [[...]] posix regepx)
+           class-expr can this be a simple class name, or a regexp matching
+           class names. Matches are made sequentially: "-c short !db" will run
+           all short tests except the db ones, "-c medium !db short" will run
+           all medium non-db ones, but also all the short ones, even with a db
    -s      standalone: do not read __INIT__ nor __END__ files
    -e file outputs the total number of errors in the file. 
    -f      forces running tests files even without a TEND directive in them.
@@ -155,9 +170,11 @@ export _debuglog=/tmp/tewiba.$LOGNAME.xlog
 export statusfile=
 export ts_standalone=false
 export TEWIBADIR=$(realpath "$PWD")
-declare -x -a TLEVELS
+export _TLEVELS
 export TV
 export must_tend=true
+declare -xa _TCLASS_RE
+_TCLASS_RE_STRING=
 
 OPTIONS='e:l:xsvV'
 #----https://github.com/ColasNahaboo/bashoptions--------------getopts----v0.2.1
@@ -166,7 +183,8 @@ err(){ E "***ERROR: $*" >&2; exit 1;};warn(){ E "###Warning: $*" >&2;}
 while getopts ":${OPTIONS}hv?" _o; do case "$_o" in
 #----single letter options start-----------------------------------------
     e) statusfile="$OPTARG";;
-    l) TLEVELS=(${OPTARG//,/ });; # convert to an array
+    l) _TLEVELS=${OPTARG//[^-[:alnum:]]/};; # for use in [...] regexpes
+    c) _TCLASS_RE_STRING="$OPTARG";;
     x) _debug=true;;
     s) ts_standalone=true;;
     f) must_tend=false;;
@@ -181,6 +199,14 @@ exit;;\?)err "Bad option: -$OPTARG, -h for help.";;':')err "Missing arg: \
 err(){ echo "***ERROR: $*" >&2; TCLEANUP; exit 1;}
 if $_debug; then
     rm -f "$_debuglog"
+fi
+
+# sets each class matching regexp into an element of the _TCLASS_RE array 
+if [ -n "$_TCLASS_RE_STRING" ]; then
+    while [[ $_TCLASS_RE_STRING =~ ^[[:space:],]*([^[:space:],]+)(.*$) ]]; do
+	_TCLASS_RE+=("${BASH_REMATCH[1]}")
+	_TCLASS_RE_STRING="${BASH_REMATCH[2]}"
+    done
 fi
 
 ############################################ Tewiba API: usable funcs & vars
@@ -212,8 +238,6 @@ export _TEWIBA_IGNORE='^$'      # regexp for ignored files
 # at toplevel, tewiba fd gets merged into stderr
 [ -z "$_twfd" ] && exec 3>&2 && _twfd=3
 
-TLEVEL(){ [ -z "$TLEVELS" ] || [[ $* =~ [$TLEVELS] ]] || _ts_skip; }
-TLEVEL_ONLY(){ [[ $* =~ [$TLEVELS] ]] || _ts_skip; }
 TEST(){ _TEST_CURRENT="$*"; TECHO "== $*"; }
 TERR(){ TECHO -fc er  "***TEST ERROR ${_TEST_CURRENT}*** $*"; let TFAILS++;}
 FERR(){
@@ -231,6 +255,21 @@ TINIT(){
 	_TINITS="$id $_TINITS"	# reverse order from inits
     done
     _tinits_push $_TINITS
+}
+
+TLEVEL(){ [ -z "$_TLEVELS" ] || [[ $* =~ [$_TLEVELS] ]] || _ts_skip; }
+TLEVEL_ONLY(){ [[ $* =~ [$_TLEVELS] ]] || _ts_skip; }
+
+TCLASS(){
+    local initstatus=0 status class re
+    [[ "$1" = '-x' ]] && initstatus=1 && shift
+    [ "${#_TCLASS_RE[@]}" = 0 ] && status=$initstatus || status=1
+    for re in "${_TCLASS_RE[@]}"; do for class in "$@"; do
+	    if [[ $class =~ ^${re#!}$ ]]; then
+		[[ $re =~ ^[!] ]] && status=1 || status=0
+	    fi
+    done; done
+    return "${status:-$initstatus}"
 }
 
 # Printing tewiba messages out of the way of stdout & stderr of the tests
@@ -420,7 +459,7 @@ ts_dir(){
 ts_level(){
     local tlevel=$(grep -oP '^[[:space:]]*TLEVEL +\K.*' "$1")
     [ -z "$tlevel" ] && return 0 # no TLEVEL line => OK
-    [ -z "$TLEVELS" ] || [[ $tlevel =~ [$TLEVELS] ]] || return 1
+    [ -z "$_TLEVELS" ] || [[ $tlevel =~ [$_TLEVELS] ]] || return 1
     return 0
 }
 
