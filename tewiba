@@ -1,9 +1,10 @@
 #!/bin/bash
-export TEWIBA=1.5.0-pre.2
+export TEWIBA=1.5.0-pre.3
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
-Runs the test suite, on all tests in the current dir (default), 
-or on specific tests or directories of tests given as arguments.
+Runs the test suite, without arguments on all tests in the tests/ subdir or
+the current dir (default), or on specific tests or directories of tests given
+as arguments.
    * Tests are given as arguments, and executed in order, they can be either
       * an executable file
       * a directory, all non-empty executable files in it will be run as tests
@@ -523,8 +524,9 @@ is_subdir_of(){ [ -n "$2" ]&&[ "${1:0:${#2}}" == "$2" ]&&[ "$1" != "$2" ];}
 # run all tests given in arguments, or in the current dir if none given
 
 if [ $# == 0 ]; then
-	ts_chdir .
-	ts_dir .
+    [ -d tests ] && cd tests
+    ts_chdir .
+    ts_dir .
 else
     for t in "$@"; do
 	cd "$TEWIBADIR"		# if t is a relative path
