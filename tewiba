@@ -178,7 +178,7 @@ export must_tend=true
 declare -xa _TCLASS_RE
 _TCLASS_RE_STRING=
 
-OPTIONS='e:l:xsvV'
+OPTIONS='e:l:xsVc:f'
 #----https://github.com/ColasNahaboo/bashoptions--------------getopts----v0.2.1
 V(){ :;};T(){ :;};v=false;E(){ echo "$@";};En(){ E -n "$@";};VV(){ :;};nl=$'\n'
 err(){ E "***ERROR: $*" >&2; exit 1;};warn(){ E "###Warning: $*" >&2;}
@@ -273,7 +273,8 @@ TCLASS(){
 		[[ $re =~ ^[!] ]] && status=1 || status=0
 	    fi
     done; done
-    return "${status:-$initstatus}"
+    [ -z "$status" ] status=$initstatus
+    [ "$status" != 0 ] && _ts_skip
 }
 
 # Printing tewiba messages out of the way of stdout & stderr of the tests
@@ -357,21 +358,16 @@ _ts_source(){ [ -f "$1" ] && { TECHO -c ti "== Sourcing $1"; . "$1";};}
 
 # export these functions to be usable in test scripts
 export -f TLEVEL_ONLY TLEVEL TEST TERR FERR TEND TECHO TINIT TCLEANUP \
- DOTEST TEWIBA_IGNORE \
+ DOTEST TEWIBA_IGNORE TCLASS \
     _tinits_push _ts_exit _ts_skip _ts_source
 
 ############################################ Tewiba internals
 # these functions are local to tewiba and not available to test scripts
 
-# quote the arg string for regexp use, if many, prints them one per line
-# $1=string, prints quoted form for inclusion in regexpes in stdout
-# quotes also / for safe use in sed /.../
-regexp_quote () {
-  local re="$1" len=${#1} i=0 c
-  while let 'i<len'; do c="${re:i:1}"; case "$c" in
-      \?|\*|\||+|.|\$|\\|\[|\]|\(|\)|/) echo -n "[$c]";;
-      '^') echo -n "\\^";; *) echo -n "$c";;
-    esac; let i++; done
+# quote regexp for use in grep and [[...]]
+regexp_quote(){ local i r c len=${#1};for (( i=0; i<len; i++ ));do
+  c="${1:i:1}";case "$c" in [^][?*\|+.$\\\(\)/^])r+="$c";;'^')r+='\^';;
+  *)r+="[$c]";;esac;done;echo -n "$r"
 }
 
 # _tinit_pull do not need to be exported into the test file scope.
