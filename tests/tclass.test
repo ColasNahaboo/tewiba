@@ -16,7 +16,7 @@ _TCLASS_RE_STRING="$1"; shift' >$ts
 [ -n "$DEBUG_TCLASS" ] && echo "set -x # $(date -Is)" >/tmp/ts #DEBUG
 sed -n -e '/if [[] -n "[$]_TCLASS_RE_STRING"/,/^fi$/p' ../tewiba >>$ts
 sed -n -e '/^TCLASS[(][)][{]/,/^[}]/p' ../tewiba >>$ts
-echo 'TCLASS "$@"' >>$ts
+echo 'TCLASS "$@"; exit 0' >>$ts
 chmod a+x $ts
 [ -n "$DEBUG_TCLASS" ] && cat $ts >>/tmp/ts && chmod a+x /tmp/ts #DEBUG
 

@@ -2,7 +2,7 @@ export var1
 
 [ -z "$var1" ] && var1=0
 
-let var1++
+let ++var1
 
 T(){ 
   local i

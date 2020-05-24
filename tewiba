@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0-pre.3
+export TEWIBA=1.5.0-pre.4
 USAGE='tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Runs the test suite, without arguments on all tests in the tests/ subdir or
@@ -48,6 +48,7 @@ Filenames beginning with a "." "#" "_" or ending with "~" are ignored
                    This is the only function really mandatory in a test file.
      DOTEST options command parameters..,
                    runs the command with parameters, and compare it to the 
+case 
                    expected result(s) in options, and trigger TERR for each
                    mismatch. Returns the number of failures (0 to 3). Options:
                    -l label     prefix TERR messages by label
@@ -226,7 +227,7 @@ export TFAILS=0
 export TOTEST
 # normal error fatalerror info filename ok allok warning. See man dircolors
 export TEWIBA_COLORS; [ -z "$TEWIBA_COLORS" ] && \
-    TEWIBA_COLORS=':-none=0:error=31:fatal=1;31:info=36:title=34:ok=32:allok=32;4:warning=35'
+    TEWIBA_COLORS=':none=0:error=31:fatal=1;31:info=36:title=34:ok=32:allok=32;4:warning=35'
 # Except the internal ones below, that start with an underscore "_"
 export _ts_failures=0		# cumulative total of TFAILS
 export _twtmp=/tmp/tewiba-main.$$ # tewiba-reserved temp zone
@@ -241,9 +242,9 @@ export _TEWIBA_IGNORE='^$'      # regexp for ignored files
 [ -z "$_twfd" ] && exec 3>&2 && _twfd=3
 
 TEST(){ _TEST_CURRENT="$*"; TECHO "== $*"; }
-TERR(){ TECHO -fc er  "***TEST ERROR ${_TEST_CURRENT}*** $*"; let TFAILS++;}
+TERR(){ TECHO -fc er  "***TEST ERROR ${_TEST_CURRENT}*** $*"; let ++TFAILS;}
 FERR(){
-    TECHO -fc fa "***FATAL ERROR ${_TEST_CURRENT}*** $*"; let TFAILS++
+    TECHO -fc fa "***FATAL ERROR ${_TEST_CURRENT}*** $*"; let ++TFAILS
     _ts_exit $TFAILS
 }
 TEND(){ _ts_exit $TFAILS; }
@@ -273,7 +274,7 @@ TCLASS(){
 		[[ $re =~ ^[!] ]] && status=1 || status=0
 	    fi
     done; done
-    [ -z "$status" ] status=$initstatus
+    [ -z "$status" ] && status=$initstatus
     [ "$status" != 0 ] && _ts_skip
 }
 
@@ -312,14 +313,14 @@ DOTEST(){
     "$@" >$tmp.dotest.out 2>$tmp.dotest.err; status=$?
 
     [ -n "$to" ] && result=$(cat $tmp.dotest.out) && \
-	[[ ( $to = f && "$result" != "$o" ) || ! $result =~ $o ]] &&let r++&&\
+	[[ ( $to = f && "$result" != "$o" ) || ! $result =~ $o ]] &&let ++r&&\
 	TERR "${label}stdout${nl}Expect: \"$o\"${nl}Got>>>: \"$result\""
     [ -n "$te" ] && result=$(cat $tmp.dotest.err) && \
-	[[ ( $te = f && "$result" != "$e" ) || ! $result =~ $e ]] &&let r++&&\
+	[[ ( $te = f && "$result" != "$e" ) || ! $result =~ $e ]] &&let ++r&&\
 	TERR "${label}stderr${nl}Expect: \"$o\"${nl}Got>>>: \"$result\""
-    [ -n "$ts" ] && let "$s" &&let r++&& \
+    [ -n "$ts" ] && let "$s" &&let ++r&& \
 	TERR "${label}status expected: \"$s\", got $status"
-    [ -n "$f" ] && ! cmp -s $tmp.dotest.out "$f" &&let r++&&\
+    [ -n "$f" ] && ! cmp -s $tmp.dotest.out "$f" &&let ++r&&\
 	if [ -n "$c" ]; then cp $tmp.dotest.out "$c"
 	 TERR "${label}output differ, compare expected to result:
 diff ${f@Q} ${F@Q}"
@@ -478,11 +479,13 @@ ts_test(){
 	echo "$s$s$nl$s Test File: $t$nl$s$s" >>$_debuglog
         # RUN TEST in Trace Mode
 	bash -x "$t" >>$_debuglog 2>&1 3>&1; status=$? # merge all outputs
+	trap TCLEANUP 0 # in case the test redefined it
     else
 	TECHO -c ti "== Test file: $f:"
 	_TSKIP=$_twtmp.skip.$$
         # RUN TEST
 	"$t" 2>$_twtmp.err >$_twtmp.out; status=$?
+	trap TCLEANUP 0 # in case the test redefined it
 	if $TV && test -s $_twtmp.out; then print_indent $_twtmp.out; fi
 	if [ -e "$_TSKIP" ]; then
 	    TECHO -c in "   Skipped"
@@ -544,7 +547,7 @@ fi
 [ -n "$_cd" ] && { ts_chdir; _cd=;}
 
 ############################################ Epilogue: print results, and exit
-if [ $_ts_failures = 0 ]; then TECHO -c ao "All tests OK =="
+if [ $_ts_failures = 0 ]; then TECHO -c al "All tests OK =="
 else TECHO -fc fa "== ***** Total tests failed: $_ts_failures *****"
 fi
 $_debug  && TECHO -fc no "== log of execution in $_debuglog for $*"
