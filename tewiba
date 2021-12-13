@@ -57,8 +57,8 @@ case
                    -f reffile   expects output to be the contents of reffile
                    -c outfile   with -f, on error, saves a copy of the output
                                 into outfile
-                   -e string    expects output to be exactly string
-                   -E regexp    expects output to match regexp with [[ =~ ]]
+                   -e string    expects stderr to be exactly string
+                   -E regexp    expects stderr to match regexp with [[ =~ ]]
                    -o string    expects output to be exactly string
                    -O regexp    expects output to match regexp with [[ =~ ]]
                    -s value     expects exit status to be value (0 = success)
@@ -313,14 +313,16 @@ DOTEST(){
     "$@" >$tmp.dotest.out 2>$tmp.dotest.err; status=$?
 
     [ -n "$to" ] && result=$(cat $tmp.dotest.out) && \
-	[[ ( $to = f && "$result" != "$o" ) || ! $result =~ $o ]] &&let ++r&&\
+	[[ ( $to = f && "$result" != "$o" ) ||
+               ( $to = e && ! $result =~ $o ) ]] &&let ++r&&\
 	TERR "${label}stdout${nl}Expect: \"$o\"${nl}Got>>>: \"$result\""
     [ -n "$te" ] && result=$(cat $tmp.dotest.err) && \
-	[[ ( $te = f && "$result" != "$e" ) || ! $result =~ $e ]] &&let ++r&&\
-	TERR "${label}stderr${nl}Expect: \"$o\"${nl}Got>>>: \"$result\""
-    [ -n "$ts" ] && let "$s" &&let ++r&& \
+	[[ ( $te = f && "$result" != "$e" ) ||
+               ( $te = e && ! $result =~ $e ) ]] &&let ++r&&\
+	TERR "${label}stderr${nl}Expect: \"$e\"${nl}Got>>>: \"$result\""
+    [ -n "$ts" ] && let "$s" && let ++r && \
 	TERR "${label}status expected: \"$s\", got $status"
-    [ -n "$f" ] && ! cmp -s $tmp.dotest.out "$f" &&let ++r&&\
+    [ -n "$f" ] && ! cmp -s $tmp.dotest.out "$f" && let ++r && \
 	if [ -n "$c" ]; then cp $tmp.dotest.out "$c"
 	 TERR "${label}output differ, compare expected to result:
 diff ${f@Q} ${F@Q}"
@@ -367,7 +369,7 @@ export -f TLEVEL_ONLY TLEVEL TEST TERR FERR TEND TECHO TINIT TCLEANUP \
 
 # quote regexp for use in grep and [[...]]
 regexp_quote(){ local i r c len=${#1};for (( i=0; i<len; i++ ));do
-  c="${1:i:1}";case "$c" in [^][?*\|+.$\\\(\)/^])r+="$c";;'^')r+='\^';;
+  c="${1:i:1}";case "$c" in [^][{}?*\|+.$\\\(\)/^])r+="$c";;'^')r+='\^';;
   *)r+="[$c]";;esac;done;echo -n "$r"
 }
 
