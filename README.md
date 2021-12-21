@@ -1,11 +1,6 @@
 # Tewiba
 **Tewiba**, **Te**sting **Wi**th **Ba**sh,  is a simple integration and functional test suite, in the unix spirit. It is written in bash but aims at testing any linux tools the unix way.
 
-## Requirements
-
-- An unix-like system with the GNU utilities (e.g, any Linux but not vanilla MacOS nor freebsd)
-- bash at least version 4.3
-
 ## Features
 
 - Each test or series of tests is a shell script, or any executable file: This system is more geared to test unix programs the unix way - handling them via a shell and looking at the exit code and sterr, rather than testing only bash scripts. (hence the WIth BAsh)
@@ -20,6 +15,11 @@
 - Geared for various custom tests in mixed environnements, in silent mode. Useful for integration tests where each test can be quite complex and do not additional complexity from the test framework. 
 
 For another shell test framework, more specialised in unit tests for shell scripts, please see SHunit2 at https://github.com/kward/shunit2
+
+## Requirements
+
+- An unix-like system with the GNU utilities (e.g, any Linux but not vanilla MacOS nor freebsd)
+- bash at least version 4.3
 
 ## Getting Started
 1. Extract the distribution somewhere, cd to it and run `./tewiba` that should exit silently, meaning all its internal tests passed.
