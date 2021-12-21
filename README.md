@@ -51,7 +51,7 @@ TEND
 ```
 ## License
 
-© 2013 Colas Nahaboo http://colas.nahaboo.net
+© 2013-2021 Colas Nahaboo http://colas.nahaboo.net
 
 Free to use, MIT License.
 
