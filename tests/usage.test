@@ -12,7 +12,7 @@ res=$(../tewiba -bogus 2>&1)
 
 res=$(../tewiba -h)
 
-[[ $res =~ ^tewiba\ [[]options[]]\ [[]tests[.][.][.][]] ]] \
+[[ $res =~ ^USAGE:\ tewiba\ [[]options[]]\ [[]tests[.][.][.][]] ]] \
   || TERR "did not print the usage"
 
 TEND

@@ -8,15 +8,22 @@ TEST TCLASS function
 # debug mode: do a "export DEBUG_TCLASS=true" before running this test, it
 # copies the script to /tmp/ts which runs with set -x mode for manual debugging
 
+# create a skeleton test script
 ts=$tmp.ts
 echo '#!/bin/bash
 TERR(){ echo "$@" >$tmp.ts.err;}
 _ts_skip(){ exit 1;}
 _TCLASS_RE_STRING="$1"; shift' >$ts
 [ -n "$DEBUG_TCLASS" ] && echo "set -x # $(date -Is)" >/tmp/ts #DEBUG
+
+# extract the initialisation up of the _TCLASS_RE array
 sed -n -e '/if [[] -n "[$]_TCLASS_RE_STRING"/,/^fi$/p' ../tewiba >>$ts
+
+# extract the function definition: TCLASS(){ ... }
 sed -n -e '/^TCLASS[(][)][{]/,/^[}]/p' ../tewiba >>$ts
 echo 'TCLASS "$@"; exit 0' >>$ts
+
+# finalize the test script
 chmod a+x $ts
 [ -n "$DEBUG_TCLASS" ] && cat $ts >>/tmp/ts && chmod a+x /tmp/ts #DEBUG
 
