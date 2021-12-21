@@ -106,7 +106,24 @@ TEST screen installed
 hash screen || TERR screen command not found
 TEND
 ```
-  
+
+### Testing that the date command is the GNU version
+Here is a simple test file to be run by Tewiba to test that the date command is the GNU version, at least v8. The first line means that it is actually also an executable a bash script, the second line allows this file to be run as argument to tewiba, or as a standalone script, in which case it calles tewiba on itself. Note how we can use all the power of bash to match strings in the results of the date command.
+```
+#!/bin/bash
+[ -n "$TEWIBA" ] || exec tewiba -v "$0"
+TEST date installed
+hash date || TERR date command not found
+TEST check that date is GNU date, at least version 8
+version=$(date --version)
+[[ $version =~ "date (GNU coreutils)" ]] || TERR date is not the GNU version of date
+[[ $version =~ "date (GNU coreutils) *"([0-9]+) ]] TERR could not determine date version
+let "${BASH_REMATCH[1]} >= 8" || TERR date version is not at least v8
+TEST just check date works as intended on a simple case
+[ $(date -d @1234567890 +%Y-%m-%d) = 2009-02-13 ] || TERR date error converting time 1234567890
+[ $(date -d 2009-02-13T23:31:30Z +%s) = 1234567890 ] || TERR date error converting date 2009-02-13T23:31:30Z
+TEND
+```
 ### Unit-testing a single function from a file
 An useful trick is to have the test file copy only the definition of a bash function into a temporary scritp file, and test this script. This way the test always test the current version of the function, without having to pollute the tested script with extra code line to define an unit test.
 
@@ -123,6 +140,7 @@ Some of my published code on GitHub use tewiba (not enough... I know), and you c
 - **v1.5.0** (2021-12-21): Major rewrite, and first publication on GitHub
 - v1.5.0-pre.1 (2020-04-19): Final steps to 1.5
 - v1.5.0-beta.1 (2020-04-12): major code rewrite started for cleaner internals.
+- v1.4.2 (2020-04-10): new convenience function provided: DOTEST 
 - v1.4 (2020-04-08): Various cleanups.
 - v1.2 (2020-03-28): TCLEANUP added.
 - **v1.1** (2017-09-06): First public release, on my (now defunct) public Mercurial repository).
