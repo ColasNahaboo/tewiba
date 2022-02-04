@@ -1,4 +1,4 @@
-# Tewiba v 1.5.0 documentation
+# Tewiba v 1.5.1 documentation
 
 Usage: `tewiba [options] [tests...]`
 
@@ -45,6 +45,8 @@ Note that all tewiba functions print on a separate file descriptor than stdout a
   - `-E regexp`    expects stderr to match regexp with `[[ =~ ]]`.
   - `-s value`     expects exit status to be value (reminder: 0 = success). If value is not a number, expects an error of any non-zero status.
   - `-S let-expr`  expects let arithmetic expression to be true, with the variable `status` holding the status.
+  - `-v value` expects the evaluation of `value` to be true, i.e. to return status code `0`.
+  - `-V value` expects calling the function `DOTEST_EVAL`, a function that you must have defined, with the parameters `value` followed by `command parameters...`, to return true, i.e. status code `0`.
 - `TECHO [options] text`    An "echo" that prints on stderr, only in verbose mode, but that tewiba does not confuse with code errors in subtests. Options:
   - `-n`      does not terminate by a newline, as with `echo -n`.
   - `-v`      (default) only prints in verbose move (i.e. when TV == true).
@@ -153,6 +155,7 @@ Some of my published code on GitHub use tewiba (not enough... I know), and you c
 
 ## History of releases
 
+- v1.5.1 (2022-02-04): New `DOTEST` options `-v` and `-V` 
 - **v1.5.0** (2021-12-21): Major rewrite, and first publication on GitHub
 - v1.5.0-pre.1 (2020-04-19): Final steps to 1.5
 - v1.5.0-beta.1 (2020-04-12): major code rewrite started for cleaner internals.

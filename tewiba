@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.0
+export TEWIBA=1.5.1
 USAGE="USAGE: tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Version $TEWIBA - More info: https://github.com/ColasNahaboo/tewiba
@@ -140,8 +140,8 @@ TECHO(){
 
 # Usage: DOTEST [options] command-to-test its-options...
 DOTEST(){
-    local opt label o to e te s ts f c result status r=0
-    OPTIND=1; while getopts 'o:O:e:E:s:S:l:f:c:' opt; do case "$opt" in
+    local opt label o to e te s ts f c vv vf result status r=0
+    OPTIND=1; while getopts 'o:O:e:E:s:S:l:f:c:v:V:' opt; do case "$opt" in
 	l) label="$OPTARG ";;
         o) o="$OPTARG"; to=f;; O) o="$OPTARG"; to=r;;
         e) e="$OPTARG"; te=f;; E) e="$OPTARG"; te=r;;
@@ -149,6 +149,7 @@ DOTEST(){
 	    s="status != $OPTARG" || s="status != 0" ; ts=r;;
         S) s="$OPTARG"; ts=r;;
 	f) f="$OPTARG";; c) c="$OPTARG";;
+        v) vv="$OPTARG";; V) vf="$OPTARG";;
         *) :;;
     esac; done; shift $((OPTIND-1))
 
@@ -170,6 +171,14 @@ DOTEST(){
 diff ${f@Q} ${F@Q}"
 	else TERR "${label}output differ"
         fi
+    [ -n "$vv" ] && {
+        eval "$vv" >/dev/null 2>&1 </dev/null ||
+            TERR "$vv failed (status $?)"
+    }
+    [ -n "$vf" ] && {
+        DOTEST_EVAL "$vf" "$@" >/dev/null 2>&1 </dev/null ||
+            TERR "DOTEST_EVAL $vf $*: failed (status $?)"
+    }
     return "$r"
 }
 
