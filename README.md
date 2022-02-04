@@ -23,8 +23,8 @@ For another shell test framework, more specialised in unit tests for shell scrip
 
 ## Getting Started
 1. Extract the distribution somewhere, cd to it and run `./tewiba` that should exit silently, meaning all its internal tests passed.
-1. Copy the`tewiba` shell script somewhere  in your PATH (e.g. `/usr/local/bin`, `~/bin`)
 1. Create a `tests` directory inside your project directory
+1. Copy the`tewiba` shell script in it. You can also copy it somewhere  in your PATH (e.g. `/usr/local/bin`, `~/bin`)
 1. Write your tests as executable files with a `.test` extension, in bash or in any language, as long as they return the number of errors as their status (0 meaning success)
 1. Run `tewiba` to launch your tests. it will exit silently if everything is OK.
 1. Read more info in the [Tewiba documentation](doc/tewiba-doc.md).
