@@ -6,7 +6,7 @@ Tewiba (**TE**sting **WI**th **BA**sh) is a simple test suite, in the spirit of 
 
 - Tests are given as arguments, and executed in order, they can be either:
   - an executable file.
-  - a directory, all non-empty executable files in it will be run as tests. Files with names beginning with a . # _ or ending with "~" are ignored. No recursion is done, subdirs will not be explicitely scanned, except the ones ending in .subtests that will be also run.
+  - a directory, all non-empty executable files in it will be run as tests. Files with names beginning with a . # _ or ending with "~" are ignored. No recursion is done, subdirs will not be explicitly scanned, except the ones ending in .subtests that will be also run.
     If a file `__INIT__` is found in the directory, it will be sourced into the shell (read) so that its definitions will be available for all the tests in it. In the same way, if an `__END__` file is found, it will be sourced after the tests.
 - Nothing is printed if all tests OK. On failure, the stderr is printed.
 - Tests exit code must be the number of failed tests (0 means OK).
@@ -19,10 +19,10 @@ Tewiba (**TE**sting **WI**th **BA**sh) is a simple test suite, in the spirit of 
 - Tests are executable files (in any language), that exit with code 0 if OK, and the number of failures if not. Since tewiba adds them to determine the final fails count, do not use negative status, e.g. no `exit -1`.
 - Test file names can be meaningful, e.g: "Test for empty input".
 - When running on a whole dir, tewiba ignores subdirectories and files beginning with `.` (a dot), `_` (underscore), and `#` (sharp), or ending with `~`, or empty, or not executable, or non-bash scripts (tewiba checks that they contain `#!/bin/bash` as their first line), containing the string `#TEWIBA_IGNORE#`, or listed via the `TEWIBA_IGNORE` function (see below).
-- But any file can run as a test if explicitely given as argument to tewiba, ignoring the above restrictions that apply only when running on a whole directory.
-- They must print on stderr an explanation of the error, or a warning if exit code is 0. Prints on stdout are only shonw in verbose mode.
+- But any file can run as a test if explicitly given as argument to tewiba, ignoring the above restrictions that apply only when running on a whole directory.
+- They must print on stderr an explanation of the error, or a warning if exit code is 0. Prints on stdout are only shown in verbose mode.
 - Tests can create temporary files and dirs prefixed by `$tmp.`, as they will be automatically cleaned afterwards by a `rm -rf $tmp $tmp.*`.
-- Test data can be put in subdirectories, as subdirectories are not tested.
+- Test data can be put in sub-directories, as sub-directories are not tested.
 
 ## Convenience functions
 
@@ -47,7 +47,7 @@ Note that all tewiba functions print on a separate file descriptor than stdout a
   - `-S let-expr`  expects let arithmetic expression to be true, with the variable `status` holding the status.
   - `-v value` expects the evaluation of `value` to be true, i.e. to return status code `0`.
   - `-V value` expects calling the function `DOTEST_EVAL`, a function that you must have defined, with the parameters `value` followed by `command parameters...`, to return true, i.e. status code `0`.
-- `TECHO [options] text`    An "echo" that prints on stderr, only in verbose mode, but that tewiba does not confuse with code errors in subtests. Options:
+- `TECHO [options] text`    An "echo" that prints on stderr, only in verbose mode, but that tewiba does not confuse with code errors in sub-tests. Options:
   - `-n`      does not terminate by a newline, as with `echo -n`.
   - `-v`      (default) only prints in verbose move (i.e. when TV == true).
   - `-f`      forces printing even in non-verbose mode.
@@ -90,7 +90,7 @@ You can also use the following variables that tewiba sets:
 - `-V`      just prints tewiba version number.
 - `-x`      debug: execute each test in set -x mode copying also the output to `/tmp/tewiba.$LOGNAME.out` Note: does not imply `-v`.
 - `-l` levels    runs only tests of the levels (characters) in the string levels.
-  `TLEVEL x` in a test file make it run only when given `-l y` if the reguilar expression `[y]` matches `x`. This makes ranges possible: `-l 0-3` matches a statement `TLEVEL 17a`
+  `TLEVEL x` in a test file make it run only when given `-l y` if the regular expression `[y]` matches `x`. This makes ranges possible: `-l 0-3` matches a statement `TLEVEL 17a`
 - `-c class-expr...`   runs only the tests which have one class specified by TCLASS in them that matches one of the class-expr (a space or comma-separated list of class names, or `[[...]]` posix regepx) class-expr can this be a simple class name, or a regexp matching class names. Matches are made sequentially: `-c short !db` will run all short tests except the db ones, `-c medium !db short` will run all medium non-db ones, but also all the short ones, even with a db.
 - `-s`      standalone: do not read `__INIT__` nor `__END__` files.
 - `-e file` outputs the total number of errors in the file. 
@@ -102,7 +102,7 @@ You can also use the following variables that tewiba sets:
 
 ### Simple example
 
-Testing that the screen command is installed, minmal version of a `screen-installed.test` file:
+Testing that the screen command is installed, minimal version of a `screen-installed.test` file:
 
 ```
 #!/bin/bash
@@ -121,7 +121,7 @@ TEND
 
 ### Testing that the date command is the GNU version
 
-Here is a simple test file to be run by Tewiba to test that the date command is the GNU version, at least v8. The first line means that it is actually also an executable a bash script, the second line allows this file to be run as argument to tewiba, or as a standalone script, in which case it calles tewiba on itself. Note how we can use all the power of bash to match strings in the results of the date command.
+Here is a simple test file to be run by Tewiba to test that the date command is the GNU version, at least v8. The first line means that it is actually also an executable a bash script, the second line allows this file to be run as argument to tewiba, or as a standalone script, in which case it calls tewiba on itself. Note how we can use all the power of bash to match strings in the results of the date command.
 
 ```
 #!/bin/bash
@@ -141,13 +141,13 @@ TEND
 
 ### Unit-testing a single function from a file
 
-An useful trick is to have the test file copy only the definition of a bash function into a temporary scritp file, and test this script. This way the test always test the current version of the function, without having to pollute the tested script with extra code line to define an unit test.
+An useful trick is to have the test file copy only the definition of a bash function into a temporary script file, and test this script. This way the test always test the current version of the function, without having to pollute the tested script with extra code line to define an unit test.
 
-This is done for instance in the [tests/tclass.test](../tests/tclass.test) test in the tewiba distrib. A skeleton test script is created, then the initialisation code for TCLASS is copied, then the function body. And the resulting script is tested.
+This is done for instance in the [tests/tclass.test](../tests/tclass.test) test in the tewiba distrib. A skeleton test script is created, then the initialization code for TCLASS is copied, then the function body. And the resulting script is tested.
 
 ### Real life examples
 
-Some of my published code on GitHub use tewiba (not enough... I know), and you can find the tests in a `test/` subdirectory. For instance:
+Some of my published code on GitHub use tewiba (not enough... I know), and you can find the tests in a `test/` sub-directory. For instance:
 
 - [tewiba](../tests) itself, of course
 - [bashoptions](https://github.com/ColasNahaboo/bashoptions/tree/main/tests)
