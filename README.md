@@ -12,7 +12,7 @@
 - Does not try to **reinvent the wheel**. If you want to write sophisticated rules to test the results, there is already all the power of Bash, no need to invent another language, like most test suite do.
 - Some **convenience** functions are provided however: TEST, TERR, TEND, ...
 - Tewiba is geared towards **integration and functional testing**: complex, large grain, where the difficulty is to setup the testing environment (a database, a web server, a subversion server, ...), and allows grouping tests in directories, with specialized code to set up and clean up before and after the tests. But since each test consists in running an unix program, it is not adapted for fine-grained unit testing.
-- Tewiba is a **self-contained** single script, with **no dependencies**, easily **embedded** in your source code with a non-viral license (MIT)
+- Tewiba is a **self-contained** single script, with **no dependencies**, easily **included** in your source code with a non-viral license (MIT), and executable on target systems without any installation.
 - Geared for various custom tests in mixed environments, in silent mode. Useful for integration tests where each test can be quite complex and do not additional complexity from the test framework. 
 
 For other shell test frameworks, you can look at [GitHub - dodie/testing-in-bash: Bash test framework comparison](https://github.com/dodie/testing-in-bash).
