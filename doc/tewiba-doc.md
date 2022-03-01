@@ -1,4 +1,4 @@
-# Tewiba v 1.5.1 documentation
+# Tewiba v 1.5.2 documentation
 
 Usage: `tewiba [options] [tests...]`
 
