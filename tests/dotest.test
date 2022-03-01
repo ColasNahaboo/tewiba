@@ -24,8 +24,10 @@ TERR "mkdir error message:$nl$(cat $tmp.dotest.err)"
 
 echo foo >$tmp.ts.f1
 $ts -l f1 -f $tmp.ts.f1 -c /tmp/f1.$LOGNAME.out echo foo || TERR dotest foofile
+
 echo bar >$tmp.ts.f2
 $ts -l f2 -f $tmp.ts.f2 -c /tmp/f2.$LOGNAME.out echo foo && TERR dotest foofile
+
 DOTEST -l f2 -s 1 $ts -l f2 -f $tmp.ts.f2 -c /tmp/f2.$LOGNAME.out echo foo
 
 TEND

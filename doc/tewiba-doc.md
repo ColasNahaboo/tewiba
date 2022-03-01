@@ -35,8 +35,8 @@ Note that all tewiba functions print on a separate file descriptor than stdout a
 - `TERR message`  raises an error, but continues the tests.
 - `FERR message`  fatal error: raises an error, but also aborts the current test file.
 - `TEND`          MANDATORY: should terminates your test script. (Actually just an alias for: `exit $TFAILS`). This is the only function really mandatory in a test file.
-- `DOTEST [options] command parameters..` A convenience function that runs the command with parameters, and compare its result(s) to the expected result(s) in options, and trigger a `TERR` for each mismatch. Returns the number of failures (0 to 3). Its options are:
-  - `-l label`     prefixes TERR messages by label.
+- `DOTEST [options] command parameters...` A convenience function that runs the command with parameters, and compare its result(s) to the expected result(s) in options, and trigger a `TERR` for each mismatch. Returns the number of failures (0 to 3). Its options are:
+  - `-l label`     prefixes TERR messages by label. Default is to use `command parameters...` as label.
   - `-o string`    expects output to be exactly string.
   - `-O regexp`    expects output to match regexp with `[[ =~ ]]`.
   - `-f reffile`   expects output to be the contents of reffile.
@@ -155,6 +155,7 @@ Some of my published code on GitHub use tewiba (not enough... I know), and you c
 
 ## History of releases
 
+- v1.5.2 (2022-03-01): `DOTEST` -l (label) option default is now the tested command and arguments, instead of nothing. `DOTEST` internal variables renamed to avoid conflicts when testing a bash function.
 - v1.5.1 (2022-02-04): New `DOTEST` options `-v` and `-V` 
 - **v1.5.0** (2021-12-21): Major rewrite, and first publication on GitHub
 - v1.5.0-pre.1 (2020-04-19): Final steps to 1.5
