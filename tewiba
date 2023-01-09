@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.3
+export TEWIBA=1.5.4
 USAGE="USAGE: tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Version $TEWIBA - More info: https://github.com/ColasNahaboo/tewiba
@@ -51,6 +51,9 @@ if [ -n "$_TCLASS_RE_STRING" ]; then
 	_TCLASS_RE_STRING="${BASH_REMATCH[2]}"
     done
 fi
+
+# Ensure . is in the path for convenience
+[[ $PATH =~ (^|:)[.]: ]] || PATH=".:$PATH"
 
 ############################################ Tewiba API: usable funcs & vars
 # These can be used in your tests script files.
