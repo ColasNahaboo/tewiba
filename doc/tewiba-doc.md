@@ -1,4 +1,4 @@
-# Tewiba v 1.5.2 documentation
+# Tewiba v 1.5.3 documentation
 
 Usage: `tewiba [options] [tests...]`
 
@@ -155,6 +155,7 @@ Some of my published code on GitHub use tewiba (not enough... I know), and you c
 
 ## History of releases
 
+- v1.5.3 (2023-01-09): minor tweak to fix a small display bug on the old bash 4.2 version still in use in some legacy linuxes (e.g: CentOS 7, debian wheezy). No need to upgrade for most people.
 - v1.5.2 (2022-03-01): `DOTEST` -l (label) option default is now the tested command and arguments, instead of nothing. `DOTEST` internal variables renamed to avoid conflicts when testing a bash function.
 - v1.5.1 (2022-02-04): New `DOTEST` options `-v` and `-V` 
 - **v1.5.0** (2021-12-21): Major rewrite, and first publication on GitHub

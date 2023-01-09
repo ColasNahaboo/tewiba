@@ -1,5 +1,5 @@
 #!/bin/bash
-export TEWIBA=1.5.2
+export TEWIBA=1.5.3
 USAGE="USAGE: tewiba [options] [tests...]
 Tewiba: TEst WIth BAsh: a simple test suite, in the spirit of shell scripting
 Version $TEWIBA - More info: https://github.com/ColasNahaboo/tewiba
@@ -172,7 +172,7 @@ DOTEST(){
     [ -n "$_DT_f" ] && ! cmp -s $tmp.dotest.out "$_DT_f" && ((++_DT_r)) && \
 	if [ -n "$_DT_c" ]; then cp $tmp.dotest.out "$_DT_c"
 	 TERR "${_DT_label} output differ, compare expected to result:
-diff ${_DT_f@Q} ${_DT_F@Q}"
+diff '${_DT_f}' '${_DT_F}'"
 	else TERR "${_DT_label} output differ"
         fi
     [ -n "$_DT_vv" ] && {
